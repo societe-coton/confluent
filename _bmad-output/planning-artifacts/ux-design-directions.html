@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Confluent — UX Design Directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-base: #FAFAF9;
+    --bg-sidebar: #F1F0EE;
+    --bg-card: #FFFFFF;
+    --text-primary: #1A1A1A;
+    --text-secondary: #6B6B6B;
+    --border: #E8E8E7;
+    --accent: #37352F;
+    --accent-hover: #1A1A1A;
+    --status-active: #4CAF7D;
+    --status-neutral: #B0B0B0;
+    --status-destructive: #E57373;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #EDEDEB;
+    color: var(--text-primary);
+    font-size: 14px;
+  }
+
+  /* NAV */
+  .page-nav {
+    background: var(--accent);
+    color: #fff;
+    padding: 0 32px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 52px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .page-nav h1 { font-size: 15px; font-weight: 600; flex: 1; }
+  .page-nav a {
+    color: rgba(255,255,255,0.7);
+    text-decoration: none;
+    font-size: 13px;
+    padding: 6px 12px;
+    border-radius: 4px;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .page-nav a:hover { background: rgba(255,255,255,0.1); color: #fff; }
+  .page-nav a.active { background: rgba(255,255,255,0.15); color: #fff; }
+
+  /* SECTION WRAPPER */
+  .direction {
+    padding: 48px 32px;
+    border-bottom: 1px solid #D8D7D5;
+  }
+  .direction-header {
+    max-width: 900px;
+    margin: 0 auto 32px;
+  }
+  .direction-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+  }
+  .direction-header h2 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .direction-header p { color: var(--text-secondary); font-size: 13px; max-width: 600px; line-height: 1.6; }
+
+  /* MOCKUP SHELL */
+  .mockup {
+    max-width: 1100px;
+    margin: 0 auto;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    background: var(--bg-base);
+  }
+  .mockup-bar {
+    background: #EDEDEB;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    gap: 8px;
+    border-bottom: 1px solid #D4D3D1;
+  }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .dot-r { background: #FF5F57; }
+  .dot-y { background: #FFBD2E; }
+  .dot-g { background: #28C840; }
+  .url-bar {
+    flex: 1;
+    background: #fff;
+    border-radius: 4px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    font-size: 11px;
+    color: #999;
+    border: 1px solid #D4D3D1;
+  }
+
+  /* ============================================================
+     DIRECTION 1 — Entrepreneur Dashboard (Sidebar + List view)
+  ============================================================ */
+  .d1-layout { display: flex; min-height: 500px; }
+  .d1-sidebar {
+    width: 220px;
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border);
+    padding: 20px 0;
+    flex-shrink: 0;
+  }
+  .d1-sidebar-logo {
+    padding: 0 16px 20px;
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+  }
+  .d1-sidebar-logo span { color: var(--text-secondary); font-weight: 400; }
+  .sidebar-section { margin-bottom: 8px; }
+  .sidebar-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-secondary);
+    padding: 4px 16px;
+    margin-bottom: 2px;
+  }
+  .sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 16px;
+    font-size: 13.5px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 0;
+    transition: all 0.1s;
+  }
+  .sidebar-item:hover { background: rgba(0,0,0,0.04); color: var(--text-primary); }
+  .sidebar-item.active {
+    background: rgba(0,0,0,0.06);
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+  .sidebar-icon { width: 16px; opacity: 0.6; }
+  .sidebar-item.active .sidebar-icon { opacity: 1; }
+
+  .d1-content { flex: 1; padding: 28px 32px; overflow: auto; }
+  .page-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .page-subtitle { color: var(--text-secondary); font-size: 13px; margin-bottom: 24px; }
+
+  .access-table { width: 100%; border-collapse: collapse; }
+  .access-table th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-secondary);
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .access-table td {
+    padding: 12px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13.5px;
+    vertical-align: middle;
+  }
+  .access-table tr:last-child td { border-bottom: none; }
+  .access-table tr:hover td { background: #F5F4F2; }
+
+  .status-dot { display: inline-flex; align-items: center; gap: 6px; }
+  .dot-sm { width: 7px; height: 7px; border-radius: 50%; }
+  .dot-active { background: var(--status-active); }
+  .dot-pending { background: #F0A830; }
+  .dot-revoked { background: var(--status-neutral); }
+
+  .revoke-btn {
+    font-size: 12px;
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    background: transparent;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .revoke-btn:hover { border-color: var(--status-destructive); color: var(--status-destructive); }
+
+  .share-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    margin-bottom: 20px;
+  }
+
+  /* ============================================================
+     DIRECTION 2 — Questionnaire Typeform Style
+  ============================================================ */
+  .d2-layout {
+    min-height: 480px;
+    background: var(--bg-base);
+    display: flex;
+    flex-direction: column;
+  }
+  .d2-progress {
+    height: 3px;
+    background: var(--border);
+  }
+  .d2-progress-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 35%;
+    transition: width 0.3s;
+  }
+  .d2-body {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 32px;
+  }
+  .d2-question { max-width: 580px; width: 100%; }
+  .d2-step { font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; font-weight: 500; }
+  .d2-q-text {
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.35;
+    margin-bottom: 8px;
+    letter-spacing: -0.02em;
+  }
+  .d2-q-hint { font-size: 13px; color: var(--text-secondary); margin-bottom: 28px; line-height: 1.5; }
+  .d2-input {
+    width: 100%;
+    border: none;
+    border-bottom: 2px solid var(--border);
+    background: transparent;
+    font-size: 18px;
+    font-family: 'Inter', sans-serif;
+    padding: 10px 0;
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .d2-input:focus { border-bottom-color: var(--accent); }
+  .d2-input::placeholder { color: #BBBBBA; }
+  .d2-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 24px;
+  }
+  .d2-next {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+  }
+  .d2-hint-key {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+  .d2-hint-key kbd {
+    background: var(--bg-sidebar);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-family: inherit;
+    font-size: 11px;
+  }
+  .d2-footer {
+    padding: 16px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+  .d2-nav-btns { display: flex; gap: 4px; }
+  .d2-nav-btn {
+    width: 28px; height: 28px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; color: var(--text-secondary);
+  }
+  .d2-nav-btn:hover { background: var(--bg-sidebar); }
+
+  /* ============================================================
+     DIRECTION 3 — Financeur Dossier View (Mobile-optimised)
+  ============================================================ */
+  .d3-outer {
+    display: flex;
+    gap: 0;
+    min-height: 540px;
+  }
+  .d3-mobile {
+    width: 340px;
+    flex-shrink: 0;
+    background: var(--bg-base);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+  }
+  .d3-desktop {
+    flex: 1;
+    background: var(--bg-base);
+    overflow-y: auto;
+  }
+  .d3-mobile-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-secondary);
+    padding: 12px 16px 8px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .device-tag {
+    background: var(--bg-sidebar);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 10px;
+  }
+  .d3-header {
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .d3-context {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .d3-dossier-title { font-size: 18px; font-weight: 700; margin-bottom: 2px; }
+  .d3-dossier-meta { font-size: 12px; color: var(--text-secondary); display: flex; gap: 10px; }
+  .tag {
+    display: inline-block;
+    background: var(--bg-sidebar);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+  .d3-sections { padding: 0; }
+  .d3-section {
+    border-bottom: 1px solid var(--border);
+    padding: 16px 20px;
+  }
+  .d3-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+  }
+  .d3-field { margin-bottom: 10px; }
+  .d3-field-label { font-size: 11px; color: var(--text-secondary); margin-bottom: 2px; }
+  .d3-field-value { font-size: 13px; font-weight: 500; line-height: 1.5; }
+
+  /* DESKTOP VERSION */
+  .d3-desktop { padding: 32px 40px; }
+  .d3-desktop .d3-header { padding: 0 0 24px; border: none; }
+  .d3-desktop .d3-dossier-title { font-size: 24px; }
+  .d3-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px; }
+  .d3-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+  }
+  .d3-card-full { grid-column: 1 / -1; }
+  .d3-card-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-secondary);
+    margin-bottom: 14px;
+  }
+
+  /* ============================================================
+     DIRECTION 4 — Analytics / Access Dashboard
+  ============================================================ */
+  .d4-layout { display: flex; min-height: 480px; }
+  .d4-sidebar {
+    width: 220px;
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border);
+    padding: 20px 0;
+    flex-shrink: 0;
+  }
+  .d4-content { flex: 1; padding: 28px 32px; }
+
+  .analytics-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+  .analytics-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .analytics-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .analytics-card-label { font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; font-weight: 500; }
+  .analytics-card-value { font-size: 24px; font-weight: 700; }
+  .analytics-card-sub { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+
+  .timeline-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .timeline-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .timeline-row {
+    display: flex;
+    align-items: center;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    gap: 16px;
+    transition: background 0.1s;
+  }
+  .timeline-row:last-child { border-bottom: none; }
+  .timeline-row:hover { background: #F8F7F5; }
+  .timeline-avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--bg-sidebar);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600; color: var(--text-secondary);
+    flex-shrink: 0;
+  }
+  .timeline-info { flex: 1; min-width: 0; }
+  .timeline-name { font-size: 13.5px; font-weight: 500; }
+  .timeline-detail { font-size: 12px; color: var(--text-secondary); }
+  .timeline-duration {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+  }
+  .timeline-duration-sub { font-size: 11px; color: var(--text-secondary); text-align: right; }
+  .timeline-status { display: flex; align-items: center; }
+  .timeline-revoke {
+    font-size: 12px;
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    background: transparent;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .timeline-revoke:hover { border-color: var(--status-destructive); color: var(--status-destructive); }
+
+  /* ============================================================
+     DIRECTION 5 — Share Panel Interaction
+  ============================================================ */
+  .d5-layout { display: flex; min-height: 460px; }
+  .d5-sidebar {
+    width: 220px;
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border);
+    padding: 20px 0;
+    flex-shrink: 0;
+  }
+  .d5-main { flex: 1; display: flex; }
+  .d5-content { flex: 1; padding: 28px 32px; }
+  .d5-panel {
+    width: 300px;
+    background: var(--bg-card);
+    border-left: 1px solid var(--border);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .d5-panel-title { font-size: 15px; font-weight: 600; }
+  .d5-panel-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+  .d5-label { font-size: 12px; font-weight: 500; margin-bottom: 6px; }
+  .d5-input-wrap { position: relative; }
+  .d5-field {
+    width: 100%;
+    border: 1px solid var(--border);
+    background: var(--bg-base);
+    border-radius: 6px;
+    padding: 9px 12px;
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .d5-field:focus { border-color: var(--accent); }
+  .d5-field::placeholder { color: #BBBBBA; }
+  .d5-send {
+    width: 100%;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+  }
+  .d5-send:hover { background: var(--accent-hover); }
+  .d5-cancel {
+    width: 100%;
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    padding: 9px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+  }
+  .d5-panel-sep { border: none; border-top: 1px solid var(--border); }
+  .d5-recent-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-secondary); }
+  .d5-recent-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .d5-recent-item:last-child { border-bottom: none; }
+  .d5-recent-email { font-size: 12.5px; flex: 1; }
+  .d5-recent-status { font-size: 11px; }
+
+  /* ============================================================
+     DIRECTION 6 — Admin Back-office
+  ============================================================ */
+  .d6-layout { display: flex; min-height: 480px; }
+  .d6-sidebar {
+    width: 220px;
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border);
+    padding: 20px 0;
+    flex-shrink: 0;
+  }
+  .d6-content { flex: 1; padding: 28px 32px; }
+  .d6-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .d6-stat {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .d6-stat-label { font-size: 11px; color: var(--text-secondary); font-weight: 500; margin-bottom: 4px; }
+  .d6-stat-value { font-size: 22px; font-weight: 700; }
+  .d6-stat-sub { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+
+  .d6-table-wrap {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .d6-table { width: 100%; border-collapse: collapse; }
+  .d6-table th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-secondary);
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    background: #F8F7F5;
+  }
+  .d6-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .d6-table tr:last-child td { border-bottom: none; }
+  .d6-table tr:hover td { background: #F8F7F5; }
+  .d6-sector { display: flex; gap: 6px; }
+
+  /* UTILITY */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .badge-green { background: #E8F5EE; color: #2E7D54; }
+  .badge-gray { background: var(--bg-sidebar); color: var(--text-secondary); }
+  .badge-orange { background: #FFF3E0; color: #E08020; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #D4D3D1; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<nav class="page-nav">
+  <h1>Confluent — UX Design Directions</h1>
+  <a href="#d1" class="active">Dashboard</a>
+  <a href="#d2">Questionnaire</a>
+  <a href="#d3">Dossier view</a>
+  <a href="#d4">Analytics</a>
+  <a href="#d5">Share panel</a>
+  <a href="#d6">Admin</a>
+</nav>
+
+<!-- ============================================================
+     DIRECTION 1 — Entrepreneur Dashboard
+============================================================ -->
+<div class="direction" id="d1">
+  <div class="direction-header">
+    <div class="direction-badge">Direction 1</div>
+    <h2>Entrepreneur Dashboard — Access List View</h2>
+    <p>Sidebar navigation, table-style access list with inline revoke action. Dense but readable. The sharing button is primary and immediately visible.</p>
+  </div>
+  <div class="mockup">
+    <div class="mockup-bar">
+      <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+      <div class="url-bar">app.confluent.fr/dossiers/biosensio</div>
+    </div>
+    <div class="d1-layout">
+      <div class="d1-sidebar">
+        <div class="d1-sidebar-logo">confluent<span>.fr</span></div>
+        <div class="sidebar-section">
+          <div class="sidebar-label">Mes dossiers</div>
+          <div class="sidebar-item active">
+            <span class="sidebar-icon">📄</span> Biosensio
+          </div>
+          <div class="sidebar-item">
+            <span class="sidebar-icon">➕</span> Nouveau dossier
+          </div>
+        </div>
+        <div class="sidebar-section" style="margin-top:16px;">
+          <div class="sidebar-label">Compte</div>
+          <div class="sidebar-item">
+            <span class="sidebar-icon">⚙️</span> Paramètres
+          </div>
+        </div>
+      </div>
+      <div class="d1-content">
+        <div class="page-title">Biosensio</div>
+        <div class="page-subtitle">DeepTech · Pré-amorçage · TRL 5 — Dossier complet</div>
+
+        <button class="share-btn">＋ Partager avec un destinataire</button>
+
+        <table class="access-table">
+          <thead>
+            <tr>
+              <th>Destinataire</th>
+              <th>Statut</th>
+              <th>Dernier accès</th>
+              <th>Vues</th>
+              <th>Durée totale</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <div style="font-weight:500;">marc.dupont@ba-investisseurs.fr</div>
+                <div style="font-size:11px;color:var(--text-secondary);">Envoyé le 12 avr. 2026</div>
+              </td>
+              <td><span class="status-dot"><span class="dot-sm dot-active"></span>Actif</span></td>
+              <td>14 avr. 2026, 14h32</td>
+              <td>3</td>
+              <td style="font-weight:600;">8 min 14 s</td>
+              <td><button class="revoke-btn">Révoquer</button></td>
+            </tr>
+            <tr>
+              <td>
+                <div style="font-weight:500;">claire.mouton@vc-loire.fr</div>
+                <div style="font-size:11px;color:var(--text-secondary);">Envoyé le 12 avr. 2026</div>
+              </td>
+              <td><span class="status-dot"><span class="dot-sm" style="background:var(--status-active);opacity:0.4;"></span><span style="color:var(--text-secondary);">En attente</span></span></td>
+              <td>—</td>
+              <td>0</td>
+              <td>—</td>
+              <td><button class="revoke-btn">Révoquer</button></td>
+            </tr>
+            <tr>
+              <td>
+                <div style="font-weight:500;color:var(--text-secondary);">contact@competitor.fr</div>
+                <div style="font-size:11px;color:var(--text-secondary);">Envoyé le 3 avr. 2026</div>
+              </td>
+              <td><span class="status-dot"><span class="dot-sm dot-revoked"></span><span style="color:var(--text-secondary);">Révoqué</span></span></td>
+              <td>9 avr. 2026, 11h05</td>
+              <td>9</td>
+              <td style="color:var(--text-secondary);">23 min</td>
+              <td><span style="font-size:12px;color:var(--text-secondary);">—</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     DIRECTION 2 — Questionnaire Typeform Style
+============================================================ -->
+<div class="direction" id="d2">
+  <div class="direction-header">
+    <div class="direction-badge">Direction 2</div>
+    <h2>Questionnaire — Style Typeform</h2>
+    <p>Une question à la fois. Question en grand, hint en dessous, champ de saisie sobre. Navigation clavier (Entrée pour avancer). Progress bar discrète en haut. Section : "Équipe fondatrice".</p>
+  </div>
+  <div class="mockup">
+    <div class="mockup-bar">
+      <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+      <div class="url-bar">app.confluent.fr/onboarding/biosensio/equipe</div>
+    </div>
+    <div class="d2-layout">
+      <div class="d2-progress"><div class="d2-progress-fill"></div></div>
+      <div class="d2-body">
+        <div class="d2-question">
+          <div class="d2-step">Section 2 sur 6 · Équipe fondatrice · Question 3 sur 5</div>
+          <div class="d2-q-text">Combien de personnes composent l'équipe fondatrice ?</div>
+          <div class="d2-q-hint">Incluez uniquement les co-fondateurs ayant des actions ou un rôle opérationnel actif. Les employés et consultants sont exclus.</div>
+          <input class="d2-input" type="number" placeholder="Ex. : 3" value="3" />
+          <div class="d2-actions">
+            <button class="d2-next">OK ✓</button>
+            <div class="d2-hint-key">ou appuyez sur <kbd>Entrée ↵</kbd></div>
+          </div>
+        </div>
+      </div>
+      <div class="d2-footer">
+        <span style="color:var(--text-secondary);">Vos données sont sauvegardées automatiquement</span>
+        <div class="d2-nav-btns">
+          <button class="d2-nav-btn">↑</button>
+          <button class="d2-nav-btn">↓</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     DIRECTION 3 — Financeur Dossier View
+============================================================ -->
+<div class="direction" id="d3">
+  <div class="direction-header">
+    <div class="direction-badge">Direction 3</div>
+    <h2>Vue Dossier Financeur — Mobile & Desktop</h2>
+    <p>Gauche : vue mobile (Marc ouvre le lien depuis son téléphone). Droite : vue desktop (même dossier, layout deux colonnes). Zéro friction, zéro création de compte.</p>
+  </div>
+  <div class="mockup">
+    <div class="mockup-bar">
+      <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+      <div class="url-bar">app.confluent.fr/d/a3f9b2c1d4e5</div>
+    </div>
+    <div class="d3-outer">
+      <!-- MOBILE -->
+      <div class="d3-mobile">
+        <div class="d3-mobile-label">
+          <span>📱</span> Vue mobile <span class="device-tag">Financeur</span>
+        </div>
+        <div class="d3-header">
+          <div class="d3-context">📤 Partagé par Sophie Moreau · Biosensio</div>
+          <div class="d3-dossier-title">Biosensio</div>
+          <div class="d3-dossier-meta">
+            <span class="tag">DeepTech</span>
+            <span class="tag">Pré-amorçage</span>
+            <span class="tag">TRL 5</span>
+          </div>
+        </div>
+        <div class="d3-sections">
+          <div class="d3-section">
+            <div class="d3-section-title">Présentation</div>
+            <div class="d3-field">
+              <div class="d3-field-label">Description</div>
+              <div class="d3-field-value">Biosensio développe des capteurs biologiques miniaturisés pour le contrôle qualité industriel en temps réel, réduisant les rejets de production de 40%.</div>
+            </div>
+            <div class="d3-field">
+              <div class="d3-field-label">Secteur</div>
+              <div class="d3-field-value">DeepTech · Industrie</div>
+            </div>
+          </div>
+          <div class="d3-section">
+            <div class="d3-section-title">Équipe</div>
+            <div class="d3-field">
+              <div class="d3-field-label">Fondateurs</div>
+              <div class="d3-field-value">Sophie Moreau (CEO) · Julien Roux (CTO)</div>
+            </div>
+            <div class="d3-field">
+              <div class="d3-field-label">Taille équipe</div>
+              <div class="d3-field-value">3 personnes · Tours</div>
+            </div>
+          </div>
+          <div class="d3-section">
+            <div class="d3-section-title">Situation financière</div>
+            <div class="d3-field">
+              <div class="d3-field-label">Recherche</div>
+              <div class="d3-field-value">350 000 € · Seed</div>
+            </div>
+            <div class="d3-field">
+              <div class="d3-field-label">CA actuel</div>
+              <div class="d3-field-value">120 000 € ARR (2025)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- DESKTOP -->
+      <div class="d3-desktop">
+        <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-secondary);padding:12px 40px 0;display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--border);padding-bottom:8px;">
+          <span>🖥️</span> Vue desktop <span class="device-tag">Financeur</span>
+        </div>
+        <div style="padding:28px 40px;">
+          <div class="d3-header">
+            <div class="d3-context">📤 Partagé par Sophie Moreau le 12 avril 2026</div>
+            <div class="d3-dossier-title">Biosensio</div>
+            <div style="display:flex;gap:8px;margin-top:8px;">
+              <span class="tag">DeepTech</span>
+              <span class="tag">Pré-amorçage</span>
+              <span class="tag">TRL 5</span>
+              <span class="tag">Tours · Centre-Val de Loire</span>
+            </div>
+          </div>
+          <div class="d3-cols">
+            <div class="d3-card">
+              <div class="d3-card-title">Présentation</div>
+              <div class="d3-field" style="margin-bottom:12px;">
+                <div class="d3-field-label">Description</div>
+                <div class="d3-field-value">Biosensio développe des capteurs biologiques miniaturisés pour le contrôle qualité industriel en temps réel.</div>
+              </div>
+              <div class="d3-field">
+                <div class="d3-field-label">Problème adressé</div>
+                <div class="d3-field-value">40% de rejets évitables dans les lignes de production agroalimentaires faute de détection rapide.</div>
+              </div>
+            </div>
+            <div class="d3-card">
+              <div class="d3-card-title">Équipe fondatrice</div>
+              <div class="d3-field" style="margin-bottom:12px;">
+                <div class="d3-field-label">Sophie Moreau — CEO</div>
+                <div class="d3-field-value">Ingénieure biologiste, 8 ans industrie, 2 brevets</div>
+              </div>
+              <div class="d3-field">
+                <div class="d3-field-label">Julien Roux — CTO</div>
+                <div class="d3-field-value">Doctorat INSA Lyon, ex-Michelin R&D</div>
+              </div>
+            </div>
+            <div class="d3-card d3-card-full">
+              <div class="d3-card-title">Situation financière</div>
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+                <div class="d3-field">
+                  <div class="d3-field-label">Recherche de financement</div>
+                  <div class="d3-field-value" style="font-size:18px;font-weight:700;">350 000 €</div>
+                  <div style="font-size:11px;color:var(--text-secondary);">Seed · Dilutif</div>
+                </div>
+                <div class="d3-field">
+                  <div class="d3-field-label">CA 2025</div>
+                  <div class="d3-field-value" style="font-size:18px;font-weight:700;">120 000 €</div>
+                  <div style="font-size:11px;color:var(--text-secondary);">ARR · 2 clients pilotes</div>
+                </div>
+                <div class="d3-field">
+                  <div class="d3-field-label">Levées précédentes</div>
+                  <div class="d3-field-value" style="font-size:18px;font-weight:700;">80 000 €</div>
+                  <div style="font-size:11px;color:var(--text-secondary);">BPI · Aides région CVL</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     DIRECTION 4 — Analytics View
+============================================================ -->
+<div class="direction" id="d4">
+  <div class="direction-header">
+    <div class="direction-badge">Direction 4</div>
+    <h2>Analytics — Vue Timeline par Destinataire</h2>
+    <p>Cartes de métriques en haut, puis timeline des accès par destinataire. Durée de session en évidence. Révocation toujours accessible en ligne.</p>
+  </div>
+  <div class="mockup">
+    <div class="mockup-bar">
+      <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+      <div class="url-bar">app.confluent.fr/dossiers/biosensio/acces</div>
+    </div>
+    <div class="d4-layout">
+      <div class="d4-sidebar">
+        <div class="d1-sidebar-logo">confluent<span>.fr</span></div>
+        <div class="sidebar-section">
+          <div class="sidebar-label">Biosensio</div>
+          <div class="sidebar-item"><span class="sidebar-icon">📄</span> Dossier</div>
+          <div class="sidebar-item active"><span class="sidebar-icon">📊</span> Accès & analytics</div>
+          <div class="sidebar-item"><span class="sidebar-icon">🔗</span> Partager</div>
+        </div>
+        <div class="sidebar-section" style="margin-top:16px;">
+          <div class="sidebar-label">Compte</div>
+          <div class="sidebar-item"><span class="sidebar-icon">⚙️</span> Paramètres</div>
+        </div>
+      </div>
+      <div class="d4-content">
+        <div class="analytics-header">
+          <div>
+            <div class="page-title">Accès & analytics</div>
+            <div class="page-subtitle">Biosensio · 3 destinataires · 12 vues au total</div>
+          </div>
+          <button class="share-btn">＋ Partager</button>
+        </div>
+
+        <div class="analytics-cards">
+          <div class="analytics-card">
+            <div class="analytics-card-label">Destinataires actifs</div>
+            <div class="analytics-card-value">2</div>
+            <div class="analytics-card-sub">sur 3 invités</div>
+          </div>
+          <div class="analytics-card">
+            <div class="analytics-card-label">Vues totales</div>
+            <div class="analytics-card-value">12</div>
+            <div class="analytics-card-sub">7 jours</div>
+          </div>
+          <div class="analytics-card">
+            <div class="analytics-card-label">Durée moy. session</div>
+            <div class="analytics-card-value">6 min</div>
+            <div class="analytics-card-sub">par accès</div>
+          </div>
+        </div>
+
+        <div class="timeline-section">
+          <div class="timeline-header">
+            <span>Journal d'accès par destinataire</span>
+            <span style="font-size:12px;color:var(--text-secondary);font-weight:400;">Mis à jour en temps réel</span>
+          </div>
+          <div class="timeline-row">
+            <div class="timeline-avatar">MD</div>
+            <div class="timeline-info">
+              <div class="timeline-name">marc.dupont@ba-investisseurs.fr</div>
+              <div class="timeline-detail">Dernière session : 14 avr. 2026 à 14h32 · 3 vues au total</div>
+            </div>
+            <div>
+              <div class="timeline-duration">8 min 14 s</div>
+              <div class="timeline-duration-sub">dernier accès</div>
+            </div>
+            <div class="timeline-status">
+              <span class="status-dot" style="margin-right:12px;"><span class="dot-sm dot-active"></span></span>
+            </div>
+            <button class="timeline-revoke">Révoquer</button>
+          </div>
+          <div class="timeline-row">
+            <div class="timeline-avatar">CM</div>
+            <div class="timeline-info">
+              <div class="timeline-name">claire.mouton@vc-loire.fr</div>
+              <div class="timeline-detail">Invitée le 12 avr. · Pas encore ouvert</div>
+            </div>
+            <div>
+              <div class="timeline-duration" style="color:var(--text-secondary);">—</div>
+              <div class="timeline-duration-sub">en attente</div>
+            </div>
+            <div class="timeline-status">
+              <span class="status-dot" style="margin-right:12px;"><span class="dot-sm dot-pending"></span></span>
+            </div>
+            <button class="timeline-revoke">Révoquer</button>
+          </div>
+          <div class="timeline-row" style="opacity:0.55;">
+            <div class="timeline-avatar" style="opacity:0.5;">?</div>
+            <div class="timeline-info">
+              <div class="timeline-name" style="color:var(--text-secondary);">contact@competitor.fr</div>
+              <div class="timeline-detail">Accès révoqué le 10 avr. · 9 vues · 23 min total</div>
+            </div>
+            <div>
+              <div class="timeline-duration" style="color:var(--text-secondary);">23 min</div>
+              <div class="timeline-duration-sub">avant révocation</div>
+            </div>
+            <div class="timeline-status">
+              <span class="status-dot" style="margin-right:12px;"><span class="dot-sm dot-revoked"></span></span>
+            </div>
+            <span style="font-size:12px;color:var(--text-secondary);padding:4px 10px;">Révoqué</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     DIRECTION 5 — Share Panel (Right Slide-in)
+============================================================ -->
+<div class="direction" id="d5">
+  <div class="direction-header">
+    <div class="direction-badge">Direction 5</div>
+    <h2>Partage — Panel latéral droit</h2>
+    <p>L'action "Partager" ouvre un panel sur la droite. Le dossier reste visible en contexte. Un seul champ : l'email. Invitation envoyée automatiquement à la validation.</p>
+  </div>
+  <div class="mockup">
+    <div class="mockup-bar">
+      <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+      <div class="url-bar">app.confluent.fr/dossiers/biosensio</div>
+    </div>
+    <div class="d5-layout">
+      <div class="d5-sidebar">
+        <div class="d1-sidebar-logo">confluent<span>.fr</span></div>
+        <div class="sidebar-section">
+          <div class="sidebar-label">Mes dossiers</div>
+          <div class="sidebar-item active"><span class="sidebar-icon">📄</span> Biosensio</div>
+          <div class="sidebar-item"><span class="sidebar-icon">➕</span> Nouveau dossier</div>
+        </div>
+      </div>
+      <div class="d5-main">
+        <div class="d5-content">
+          <div class="page-title">Biosensio</div>
+          <div class="page-subtitle" style="margin-bottom:20px;">DeepTech · Pré-amorçage · Dossier complet</div>
+          <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:20px;opacity:0.5;">
+            <div style="font-weight:600;margin-bottom:12px;">Présentation</div>
+            <div style="height:8px;background:var(--border);border-radius:4px;margin-bottom:8px;width:90%;"></div>
+            <div style="height:8px;background:var(--border);border-radius:4px;margin-bottom:8px;width:75%;"></div>
+            <div style="height:8px;background:var(--border);border-radius:4px;width:60%;"></div>
+          </div>
+        </div>
+        <div class="d5-panel">
+          <div>
+            <div class="d5-panel-title">Partager le dossier</div>
+            <div class="d5-panel-desc" style="margin-top:4px;">Un lien unique sera créé pour ce destinataire. Vous pourrez suivre ses accès et révoquer à tout moment.</div>
+          </div>
+          <hr class="d5-panel-sep">
+          <div>
+            <div class="d5-label">Email du destinataire</div>
+            <input class="d5-field" type="email" placeholder="prenom.nom@organisation.fr" />
+          </div>
+          <button class="d5-send">Envoyer l'invitation</button>
+          <button class="d5-cancel">Annuler</button>
+          <hr class="d5-panel-sep">
+          <div class="d5-recent-title">Destinataires existants</div>
+          <div class="d5-recent-item">
+            <span class="dot-sm dot-active" style="background:var(--status-active);"></span>
+            <span class="d5-recent-email">marc.dupont@ba-investisseurs.fr</span>
+            <span class="d5-recent-status" style="color:var(--text-secondary);">Actif</span>
+          </div>
+          <div class="d5-recent-item">
+            <span class="dot-sm" style="background:#F0A830;width:7px;height:7px;border-radius:50%;"></span>
+            <span class="d5-recent-email">claire.mouton@vc-loire.fr</span>
+            <span class="d5-recent-status" style="color:var(--text-secondary);">En attente</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     DIRECTION 6 — Admin Back-office
+============================================================ -->
+<div class="direction" id="d6">
+  <div class="direction-header">
+    <div class="direction-badge">Direction 6</div>
+    <h2>Back-office Administrateur — Vue Pipeline</h2>
+    <p>Stats globales en haut, puis tableau des dossiers avec secteur, stade et statut. Simple et opérationnel. Même palette, ton plus dense.</p>
+  </div>
+  <div class="mockup">
+    <div class="mockup-bar">
+      <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+      <div class="url-bar">app.confluent.fr/admin/pipeline</div>
+    </div>
+    <div class="d6-layout">
+      <div class="d6-sidebar">
+        <div class="d1-sidebar-logo">confluent<span>.fr</span></div>
+        <div class="sidebar-section">
+          <div class="sidebar-label">Administration</div>
+          <div class="sidebar-item active"><span class="sidebar-icon">📊</span> Pipeline</div>
+          <div class="sidebar-item"><span class="sidebar-icon">👥</span> Utilisateurs</div>
+          <div class="sidebar-item"><span class="sidebar-icon">🔧</span> Questionnaire</div>
+          <div class="sidebar-item"><span class="sidebar-icon">📋</span> Journal</div>
+        </div>
+      </div>
+      <div class="d6-content">
+        <div class="page-title">Pipeline régional</div>
+        <div class="page-subtitle" style="margin-bottom:20px;">Centre-Val de Loire · French Tech CVL</div>
+
+        <div class="d6-stats">
+          <div class="d6-stat">
+            <div class="d6-stat-label">Dossiers actifs</div>
+            <div class="d6-stat-value">14</div>
+            <div class="d6-stat-sub">+3 ce mois</div>
+          </div>
+          <div class="d6-stat">
+            <div class="d6-stat-label">Entrepreneurs</div>
+            <div class="d6-stat-value">12</div>
+          </div>
+          <div class="d6-stat">
+            <div class="d6-stat-label">Financeurs actifs</div>
+            <div class="d6-stat-value">7</div>
+          </div>
+          <div class="d6-stat">
+            <div class="d6-stat-label">Accès cette semaine</div>
+            <div class="d6-stat-value">34</div>
+          </div>
+        </div>
+
+        <div class="d6-table-wrap">
+          <table class="d6-table">
+            <thead>
+              <tr>
+                <th>Dossier</th>
+                <th>Entrepreneur</th>
+                <th>Secteur</th>
+                <th>Stade</th>
+                <th>Destinataires</th>
+                <th>Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span style="font-weight:500;">Biosensio</span></td>
+                <td>Sophie Moreau</td>
+                <td><div class="d6-sector"><span class="tag">DeepTech</span></div></td>
+                <td><span class="badge badge-orange">Pré-amorçage</span></td>
+                <td>3</td>
+                <td><span class="badge badge-green">Complet</span></td>
+              </tr>
+              <tr>
+                <td><span style="font-weight:500;">AgroLoop</span></td>
+                <td>Paul Renard</td>
+                <td><div class="d6-sector"><span class="tag">AgriTech</span></div></td>
+                <td><span class="badge badge-orange">Amorçage</span></td>
+                <td>1</td>
+                <td><span class="badge badge-green">Complet</span></td>
+              </tr>
+              <tr>
+                <td><span style="font-weight:500;">NovaMed</span></td>
+                <td>Isabelle Faure</td>
+                <td><div class="d6-sector"><span class="tag">MedTech</span></div></td>
+                <td><span class="badge badge-gray">Idéation</span></td>
+                <td>0</td>
+                <td><span class="badge badge-gray">En cours</span></td>
+              </tr>
+              <tr>
+                <td><span style="font-weight:500;">CycloFreight</span></td>
+                <td>Antoine Martin</td>
+                <td><div class="d6-sector"><span class="tag">GreenTech</span></div></td>
+                <td><span class="badge badge-orange">Pré-amorçage</span></td>
+                <td>5</td>
+                <td><span class="badge badge-green">Complet</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
