@@ -1,6 +1,6 @@
 # Story 1.1: Turborepo Monorepo Scaffold
 
-Status: review
+Status: done
 
 ## Story
 
@@ -65,6 +65,51 @@ so that frontend and backend can be developed in a unified codebase with shared 
   - [x] `pnpm turbo run lint` → 2 successful, 0 errors 0 warnings
   - [x] `pnpm turbo run dev` → web ready on 5173, NestJS started on 3000
 
+### Review Findings
+
+#### Decision Needed
+
+- [x] [Review][Decision] Scope creep — apps/web/package.json bundles Story 1.2 design-system deps. **Resolved → D1.A (keep bundled, acknowledge scope in File List + Completion Notes; converted to patch P19).**
+- [x] [Review][Decision] Root `.eslintrc.cjs` fate. **Resolved → D2.A (delete root config; apps own their linting; converted to patch P20).**
+- [x] [Review][Decision] api ESLint downgrades. **Resolved → D3.B (restore strict rules: `no-explicit-any` error, `no-floating-promises` error, `no-unsafe-argument` error; converted to patch P21).**
+
+#### Patch
+
+- [x] [Review][Patch] e2e test body mismatch — `apps/api/test/app.e2e-spec.ts:21` asserts `'Hello World!'` but `apps/api/src/app.controller.ts:7` returns `'Confluent API is running'`. `pnpm --filter @confluent/api test:e2e` fails out of the box.
+- [x] [Review][Patch] Build artifact committed — `apps/api/tsconfig.build.tsbuildinfo` is tracked. Add `*.tsbuildinfo` to root `.gitignore` and untrack the file. Root `.gitignore` currently covers `dist` but the tsbuildinfo is written at app root.
+- [x] [Review][Patch] `apps/web/tsconfig.app.json:19-22` contains `paths` alias for `@confluent/shared` — contradicts Dev Notes "Cross-workspace resolution without `paths`" and Task 6 ("no `paths` needed"). Remove the alias; rely on pnpm workspace symlink (bundler moduleResolution handles it).
+- [x] [Review][Patch] `apps/web/src/main.tsx` missing `UserRole` import — violates AC 3 and Task 6 subtask "Verified `UserRole` type import in `apps/web/src/main.tsx`". Add `import type { UserRole } from '@confluent/shared'` and a type-level reference.
+- [x] [Review][Patch] `apps/web/vite.config.ts:15` hardcodes `allowedHosts: ['labeuz-coder.coton.app', '.coton.app']` — dev-specific hostname leaked into shared config. Move to `.env.local` via `VITE_ALLOWED_HOSTS` or remove.
+- [x] [Review][Patch] Conflicting Prettier configs — root `.prettierrc` sets `"semi": false` while `apps/api/.prettierrc` omits it (defaults `true`). Format churn. Align both (keep single root config, delete per-app overrides).
+- [x] [Review][Patch] `apps/web/package.json` `lint` script uses deprecated `--ext` — ESLint 9 flat config ignores `--ext`. Change to `eslint .` (flat config handles file types).
+- [x] [Review][Patch] `packages/shared/tsconfig.json` vestigial `outDir`/`rootDir` — shared ships source via `"main": "./src/index.ts"`, no build step. Remove both fields to match intent.
+- [x] [Review][Patch] `apps/api` lint script glob `{src,apps,libs,test}/**/*.ts` includes non-existent `apps/`, `libs/` and includes `test/` which is excluded from `tsconfig.json`. `projectService: true` then errors "file is not in project". Scope glob to `src/**/*.ts test/**/*.ts` and add a tsconfig for tests (or disable projectService on tests).
+- [x] [Review][Patch] `turbo.json` `build` outputs contain dead `.next/**` (no Next.js app) and miss api's `dist/**` granularity. Remove `.next/**`; verify api build output path.
+- [x] [Review][Patch] `turbo.json` `typecheck` task has no `inputs`/`outputs` — caching behavior undefined, re-runs or caches staleness. Declare inputs (`src/**`, `tsconfig*.json`) and outputs (`*.tsbuildinfo`).
+- [x] [Review][Patch] pnpm 10 blocks postinstall scripts by default — `@nestjs/core` and `unrs-resolver` require them (noted in Dev Notes "Known Quirks"). Add `onlyBuiltDependencies: ['@nestjs/core', 'unrs-resolver', 'esbuild']` to `pnpm-workspace.yaml` (or `package.json` `pnpm` field) to unblock CI/prod installs.
+- [x] [Review][Patch] Dead `_roleCheck` runtime code in `apps/api/src/app.module.ts:6-7` — `const _roleCheck: UserRole = 'entrepreneur'; void _roleCheck;` ships to production just to verify compile-time resolution. Replace with type-level: `type _CrossWorkspaceTypeCheck = UserRole;`.
+- [x] [Review][Patch] File List documentation incomplete — missing entries: `apps/api/.prettierrc`, `apps/api/README.md`, `apps/api/eslint.config.mjs`, `apps/api/test/app.e2e-spec.ts`, `apps/api/test/jest-e2e.json`, `apps/api/tsconfig.build.json`, `apps/web/tsconfig.node.json`. Update spec File List for future traceability.
+- [x] [Review][Patch] `.gitignore` listed in File List (line 131) as "Created" but file was already in initial commit and not modified by this story — remove from File List or note as "verified unchanged".
+- [x] [Review][Patch] `apps/api` emits `tsconfig.build.tsbuildinfo` at app root — redirect via `"tsBuildInfoFile": "./node_modules/.tmp/tsconfig.build.tsbuildinfo"` in `tsconfig.build.json` (web already does this in `tsconfig.app.json:3`).
+- [x] [Review][Patch] `apps/api/src/main.ts:5` `process.env.PORT ?? 3000` — nullish coalescing does NOT fall through on empty string. If `PORT=""`, Nest tries to listen on `""`. Use `Number(process.env.PORT) || 3000`.
+- [x] [Review][Patch] `apps/api/test/jest-e2e.json:5` `testRegex: ".e2e-spec.ts$"` — unescaped `.` matches any character. Fix to `"\\.e2e-spec\\.ts$"`.
+- [x] [Review][Patch] (from D1.A) Update story File List + Completion Notes to acknowledge Story 1.2 design-system deps bundled in `apps/web/package.json` (so 1.2 doesn't re-add them and traceability is preserved).
+- [x] [Review][Patch] (from D2.A) Delete root `.eslintrc.cjs` — apps own their linting via flat config. Confirms AC 5 runs via per-app `pnpm turbo run lint`.
+- [x] [Review][Patch] (from D3.B) Restore strict rules in `apps/api/eslint.config.mjs` — re-enable `@typescript-eslint/no-explicit-any: 'error'`, `no-floating-promises: 'error'`, `no-unsafe-argument: 'error'`. Fix any resulting lint violations.
+
+#### Defer
+
+- [x] [Review][Defer] Shared package ships raw `.ts` as `main`/`types` — works in-repo via bundlers and pnpm symlink but will break a production `node dist/main` that doesn't bundle the shared package. Deferred to Epic 10 (Docker/deployment) where shared consumption strategy will be finalized.
+- [x] [Review][Defer] TypeScript major drift — api on `^5.7.3`, web on `~6.0.2` (Vite 8 template default). Explicitly acknowledged in Dev Notes "Known Quirks" as future-alignment item.
+- [x] [Review][Defer] `engines.node: ">=22"` permissive with `@types/node: ^24` — types/runtime drift possible on Node 22 LTS. Revisit with CI matrix decision.
+- [x] [Review][Defer] `turbo.json` `dev` task missing `dependsOn: ["^build"]` — not breaking today (shared exports source, no build step). Preemptive; revisit if shared adds a build.
+- [x] [Review][Defer] No `.nvmrc` / `.node-version` — `engines.node` is advisory only. Consider adding for CI/dev-env consistency.
+
+### Change Log
+
+- **2026-04-14** — Initial implementation: Turborepo scaffold with `apps/api` (NestJS 11), `apps/web` (React 19 + Vite 8), `packages/shared`. All 8 tasks + 6 ACs satisfied.
+- **2026-04-14** — Code review addressed: 3 decisions resolved, 21 patches applied, 5 items deferred (see `deferred-work.md`). Root `.eslintrc.cjs` removed; apps own linting via flat config. Build artifact `tsconfig.build.tsbuildinfo` untracked + redirected to `node_modules/.tmp/`. Strict ESLint rules restored in api. `allowedHosts` moved to env var. 1.2 design-system deps acknowledged as bundled in this story.
+
 ## Dev Notes
 
 ### Key Implementation Decisions
@@ -114,43 +159,54 @@ claude-sonnet-4-6
 
 ### Completion Notes List
 
-1. Monorepo root files (`package.json`, `pnpm-workspace.yaml`, `turbo.json`, `tsconfig.json`, `.gitignore`, `.eslintrc.cjs`, `.prettierrc`) created.
-2. NestJS 11 scaffolded to `apps/api`, renamed to `@confluent/api`, simplified (no default AppService); `deleteOutDir` disabled.
+1. Monorepo root files (`package.json`, `pnpm-workspace.yaml`, `turbo.json`, `tsconfig.json`, `.prettierrc`) created. `.gitignore` existed in initial commit — extended with `*.tsbuildinfo`.
+2. NestJS 11 scaffolded to `apps/api`, renamed to `@confluent/api`, simplified (no default AppService); `deleteOutDir: false` kept to avoid `nest start --watch` race.
 3. React 19 + Vite 8 scaffolded to `apps/web` with `react-ts` template, renamed to `@confluent/web`, dev port pinned to 5173.
 4. `packages/shared` created from scratch with a single exported `UserRole` type.
-5. Cross-workspace type import validated at compile time via `UserRole` usage in both apps.
+5. Cross-workspace type import validated at compile time via re-exported `_CrossWorkspaceTypeCheck` type alias in both `apps/api/src/app.module.ts` and `apps/web/src/main.tsx`.
 6. All four turbo pipeline tasks (typecheck, build, lint, dev) pass end-to-end.
+7. **Scope extension:** `apps/web/package.json` includes design-system dependencies (`@base-ui/react`, `tailwindcss`, `@tailwindcss/vite`, `shadcn`, `lucide-react`, `class-variance-authority`, `clsx`, `next-themes`, `sonner`, `tailwind-merge`, `tw-animate-css`, `@fontsource-variable/inter`) intended for Story 1.2. Bundled here during scaffold and retained per code-review decision D1.A — Story 1.2 should not re-add them.
+8. **Code review addressed (2026-04-14):** 21 patch findings applied (e2e body mismatch, tsbuildinfo artifact untracked, `tsconfig.app.json` paths alias removed, `allowedHosts` moved to env, prettier configs unified, lint scripts fixed for ESLint 9 flat config, turbo pipeline inputs/outputs declared, pnpm `onlyBuiltDependencies` declared, strict ESLint rules restored in api, etc.). Root `.eslintrc.cjs` deleted — apps own their linting via flat config.
 
 ### File List
 
 **Created (monorepo root):**
 - `package.json`
-- `pnpm-workspace.yaml`
-- `turbo.json`
+- `pnpm-workspace.yaml` — added `onlyBuiltDependencies` for `@nestjs/core`, `@swc/core`, `esbuild`, `unrs-resolver`
+- `turbo.json` — tasks with `inputs`/`outputs` declared for proper caching
 - `tsconfig.json`
-- `.gitignore`
-- `.eslintrc.cjs`
-- `.prettierrc`
+- `.prettierrc` (root only — `apps/api/.prettierrc` deleted to avoid drift)
+
+**Updated (monorepo root):**
+- `.gitignore` — pre-existing; added `*.tsbuildinfo`
 
 **Created (packages/shared):**
 - `packages/shared/package.json`
-- `packages/shared/tsconfig.json`
+- `packages/shared/tsconfig.json` — no `outDir`/`rootDir` (shared ships raw source)
 - `packages/shared/src/index.ts`
 
 **Scaffolded + modified (apps/api):**
 - `apps/api/` (full NestJS scaffold)
-- `apps/api/package.json` — renamed to `@confluent/api`, added `dev` and `typecheck` scripts, added `@confluent/shared` dep
-- `apps/api/tsconfig.json` — added `rootDir: ./src`, `include`, `exclude`
+- `apps/api/package.json` — renamed to `@confluent/api`, added `dev` and `typecheck` scripts, `@confluent/shared` dep, scoped `lint` glob to `src/**/*.ts`, removed unused `@eslint/eslintrc` devDep
+- `apps/api/tsconfig.json` — `rootDir: ./src`, `include`, `exclude`, `tsBuildInfoFile` redirected to `node_modules/.tmp/`
+- `apps/api/tsconfig.build.json` — `tsBuildInfoFile` redirected to `node_modules/.tmp/`
 - `apps/api/nest-cli.json` — `deleteOutDir: false`
-- `apps/api/src/app.module.ts` — simplified; added `UserRole` type import for cross-workspace validation
-- `apps/api/src/app.controller.ts` — simplified (no service dep)
-- `apps/api/src/main.ts` — `void bootstrap()` to satisfy `no-floating-promises`
+- `apps/api/eslint.config.mjs` — flat config; strict rules (`no-explicit-any`, `no-floating-promises`, `no-unsafe-argument` → `error`)
+- `apps/api/README.md` — NestJS CLI default scaffold (kept as-is)
+- `apps/api/test/app.e2e-spec.ts` — e2e spec; assertion aligned to controller response
+- `apps/api/test/jest-e2e.json` — escaped `testRegex` dots
+- `apps/api/src/app.module.ts` — simplified; `UserRole` cross-workspace type via re-exported type alias
+- `apps/api/src/app.controller.ts` — simplified (no service dep); returns `'Confluent API is running'`
+- `apps/api/src/main.ts` — `Number(process.env.PORT) || 3000` port resolution; `void bootstrap()` for `no-floating-promises`
 - `apps/api/src/app.service.ts` — **deleted**
 - `apps/api/src/app.controller.spec.ts` — **deleted**
+- `apps/api/.prettierrc` — **deleted** (root config is authoritative)
 
 **Scaffolded + modified (apps/web):**
 - `apps/web/` (full React 19 + Vite 8 scaffold)
-- `apps/web/package.json` — renamed to `@confluent/web`, added `typecheck` script, pinned dev port 5173, added `@confluent/shared` dep
-- `apps/web/vite.config.ts` — added `server.port: 5173`
-- `apps/web/tsconfig.app.json` — no path changes (relies on pnpm symlink)
-- `apps/web/src/main.tsx` — added `UserRole` type import for cross-workspace validation
+- `apps/web/package.json` — renamed to `@confluent/web`, added `typecheck` script, pinned dev port 5173, `@confluent/shared` dep, `lint` uses flat-config discovery (`eslint .`), bundled Story 1.2 design-system deps (see Completion Note 7)
+- `apps/web/vite.config.ts` — `server.port: 5173`, `allowedHosts` driven by `VITE_ALLOWED_HOSTS` env var (no hardcoded hostnames)
+- `apps/web/tsconfig.app.json` — `@/*` alias only; `@confluent/shared` resolved via pnpm workspace symlink (no path alias)
+- `apps/web/tsconfig.json`, `apps/web/tsconfig.node.json` — Vite template defaults
+- `apps/web/eslint.config.js` — Vite template default (flat config)
+- `apps/web/src/main.tsx` — re-exported `_CrossWorkspaceTypeCheck` type alias for compile-time shared-package resolution validation
