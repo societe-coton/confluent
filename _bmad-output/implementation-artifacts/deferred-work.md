@@ -21,3 +21,10 @@ Tracking items deliberately postponed during reviews. Each entry records where t
 - **`hero.png` + `icons.svg` + `favicon.svg` scaffold leftovers** — scaffold-introduced assets; clean up once production favicon/icon set is designed.
 - **Chart tokens near-indistinguishable** — design concern; revisit when chart components actually get built.
 - **`index.html` missing trailing newline** — minor; will be normalized by prettier pass when convenient.
+
+## Deferred from: code review of 1-3-route-skeleton-hardcoded-user-context (2026-04-14)
+
+- **No `errorElement` / ErrorBoundary on any route** — a thrown render error (e.g. `useCurrentUser` misuse, future loaders) currently white-screens the app. Add route-level error UI when real loaders and protected routes land in Epics 2/6.
+- **`useParams<{ token: string }>()` is a type lie** [apps/web/src/routes/share/index.tsx:4] — React Router types params as `string | undefined`. Tighten with a runtime guard when the real share view lands in Epic 4.
+- **Sidebar user block has no truncation for long name/email** [apps/web/src/components/layout/AppShell.tsx:29-30] — harmless with the hardcoded user; apply `truncate` + `title` attributes when real users land in Epic 6.
+- **`apps/web/package.json` devDependency ordering drift** — cosmetic churn from pnpm (`shadcn` moved down the list). Normalize with a `sort-package-json` pass or ignore.
