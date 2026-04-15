@@ -28,3 +28,10 @@ Tracking items deliberately postponed during reviews. Each entry records where t
 - **`useParams<{ token: string }>()` is a type lie** [apps/web/src/routes/share/index.tsx:4] — React Router types params as `string | undefined`. Tighten with a runtime guard when the real share view lands in Epic 4.
 - **Sidebar user block has no truncation for long name/email** [apps/web/src/components/layout/AppShell.tsx:29-30] — harmless with the hardcoded user; apply `truncate` + `title` attributes when real users land in Epic 6.
 - **`apps/web/package.json` devDependency ordering drift** — cosmetic churn from pnpm (`shadcn` moved down the list). Normalize with a `sort-package-json` pass or ignore.
+
+## Deferred from: code review of 2-1-app-shell-sidebar-layout (2026-04-15)
+
+- **Breadcrumbs render on `NotFoundRoute` paths under `/dashboard`** [apps/web/src/components/layout/Breadcrumbs.tsx:14-18] — a 404 inside the shell still gets a misleading trail (e.g. "Mes dossiers / typo"). Low-impact UX polish; revisit alongside the deferred `errorElement` work from story 1.3.
+- **Surrogate-pair / emoji / combining-mark first character produces broken initial** [apps/web/src/components/layout/AppShell.tsx:62] — `name.charAt(0)` returns a UTF-16 code unit, not a grapheme. Hardcoded user is ASCII today; revisit alongside Epic 6 real-auth wiring when names become user-supplied.
+- **`tableau-de-bord` NavLink lacks `end`, would stay highlighted on hypothetical deeper paths** [apps/web/src/components/layout/nav-items.ts:11] — only matters via the nested 404; no such routes exist today. Add `end: true` if/when child routes land under `/dashboard/tableau-de-bord`.
+- **Unknown breadcrumb segments fall through to raw kebab-slug labels** [apps/web/src/components/layout/Breadcrumbs.tsx:10-12] — spec explicitly allows this for future dossier slugs. Revisit if non-slug-like segments appear.

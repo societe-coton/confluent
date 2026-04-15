@@ -1,38 +1,132 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { Outlet } from 'react-router-dom'
 import { Separator } from '@/components/ui/separator'
 import { useCurrentUser } from '@/features/current-user/context'
-import { cn } from '@/lib/utils'
+import { Breadcrumbs } from './Breadcrumbs'
+import { NavItem } from './NavItem'
+import { NAV_ITEMS } from './nav-items'
+import type { User } from '@confluent/shared'
 
-const navLinkClasses = ({ isActive }: { isActive: boolean }) =>
-  cn(
-    'block rounded-md px-3 py-2 text-sm text-sidebar-foreground transition-colors',
-    isActive ? 'bg-sidebar-accent font-medium' : 'hover:bg-sidebar-accent/60'
+function SkipLink() {
+  return (
+    <a
+      href="#main-content"
+      className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:shadow focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)]"
+    >
+      Aller au contenu principal
+    </a>
   )
+}
+
+function DesktopSidebar({ user }: { user: User }) {
+  return (
+    <aside className="hidden w-60 shrink-0 flex-col bg-sidebar lg:flex">
+      <div className="px-4 py-6 text-lg font-heading font-medium text-sidebar-foreground">
+        Confluent
+      </div>
+      <Separator />
+      <nav
+        aria-label="Navigation principale"
+        className="flex-1 px-2 py-4"
+      >
+        <ul className="space-y-1">
+          {NAV_ITEMS.map((item) => (
+            <li key={item.to}>
+              <NavItem item={item} variant="desktop" />
+            </li>
+          ))}
+        </ul>
+      </nav>
+      <Separator />
+      <div className="px-4 py-4 text-sm">
+        <div
+          className="truncate font-medium text-sidebar-foreground"
+          title={user.name}
+        >
+          {user.name}
+        </div>
+        <div
+          className="truncate text-xs text-muted-foreground"
+          title={user.email}
+        >
+          {user.email}
+        </div>
+      </div>
+    </aside>
+  )
+}
+
+function TabletRail({ user }: { user: User }) {
+  const initial = (user.name.charAt(0) || '?').toUpperCase()
+  return (
+    <aside className="hidden w-[60px] shrink-0 flex-col items-center bg-sidebar md:flex lg:hidden">
+      <div
+        className="py-6 text-lg font-heading font-medium text-sidebar-foreground"
+        aria-hidden="true"
+      >
+        C
+      </div>
+      <Separator />
+      <nav
+        aria-label="Navigation principale"
+        className="flex-1 py-4"
+      >
+        <ul className="flex flex-col items-center gap-1">
+          {NAV_ITEMS.map((item) => (
+            <li key={item.to}>
+              <NavItem item={item} variant="rail" />
+            </li>
+          ))}
+        </ul>
+      </nav>
+      <Separator />
+      <div className="py-4">
+        <div
+          role="img"
+          title={user.name}
+          aria-label={user.name}
+          className="flex size-8 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground"
+        >
+          {initial}
+        </div>
+      </div>
+    </aside>
+  )
+}
+
+function MobileBottomNav() {
+  return (
+    <nav
+      aria-label="Navigation principale"
+      className="fixed inset-x-0 bottom-0 z-40 flex h-16 border-t border-sidebar-border bg-sidebar md:hidden"
+    >
+      <ul className="flex w-full">
+        {NAV_ITEMS.map((item) => (
+          <li key={item.to} className="flex min-h-11 flex-1">
+            <NavItem item={item} variant="bottom" />
+          </li>
+        ))}
+      </ul>
+    </nav>
+  )
+}
 
 export function AppShell() {
   const user = useCurrentUser()
 
   return (
     <div className="flex min-h-screen bg-background">
-      <aside className="hidden w-60 shrink-0 flex-col bg-sidebar md:flex">
-        <div className="px-4 py-6 text-lg font-heading font-medium text-sidebar-foreground">
-          Confluent
-        </div>
-        <Separator />
-        <nav className="flex-1 space-y-1 px-2 py-4">
-          <NavLink to="/dashboard" end className={navLinkClasses}>
-            Dashboard
-          </NavLink>
-        </nav>
-        <Separator />
-        <div className="px-4 py-4 text-sm">
-          <div className="font-medium text-sidebar-foreground">{user.name}</div>
-          <div className="text-muted-foreground">{user.email}</div>
-        </div>
-      </aside>
-      <main className="flex-1 px-6 py-8">
+      <SkipLink />
+      <DesktopSidebar user={user} />
+      <TabletRail user={user} />
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex-1 px-6 py-8 pb-16 md:pb-0 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--ring)]"
+      >
+        <Breadcrumbs />
         <Outlet />
       </main>
+      <MobileBottomNav />
     </div>
   )
 }

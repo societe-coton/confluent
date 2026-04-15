@@ -1,5 +1,5 @@
 # generated: 2026-04-14
-# last_updated: 2026-04-14
+# last_updated: 2026-04-15
 # project: confluent
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-14
-last_updated: 2026-04-14
+last_updated: 2026-04-15
 project: confluent
 project_key: NOKEY
 tracking_system: file-system
@@ -50,8 +50,8 @@ development_status:
   epic-1-retrospective: optional
 
   # ── Epic 2: Core Loop — Dashboard to Dossier (Frontend) ─────────────────────
-  epic-2: backlog
-  2-1-app-shell-sidebar-layout: backlog
+  epic-2: in-progress
+  2-1-app-shell-sidebar-layout: done
   2-2-dashboard-empty-state: backlog
   2-3-dossier-creation-naming-step: backlog
   2-4-questionnaire-step-component-hardcoded-questions: backlog
