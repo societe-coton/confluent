@@ -4,6 +4,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   dashboard: 'Mes dossiers',
   'tableau-de-bord': 'Tableau de bord',
   dossiers: 'Dossiers',
+  nouveau: 'Nouveau',
   admin: 'Administration',
 }
 

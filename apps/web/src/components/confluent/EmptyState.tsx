@@ -24,7 +24,7 @@ export function EmptyState({
         className,
       )}
     >
-      <div className="text-foreground [&>svg]:mx-auto">{illustration}</div>
+      <div className="text-foreground">{illustration}</div>
       <div className="flex max-w-md flex-col gap-2">
         <h3 className="text-base font-semibold text-foreground">{title}</h3>
         <p className="text-sm leading-relaxed text-muted-foreground">
@@ -32,7 +32,7 @@ export function EmptyState({
         </p>
       </div>
       {cta ? (
-        <Button size="lg" onClick={cta.onClick}>
+        <Button size="lg" className="h-11 px-4" onClick={cta.onClick}>
           {cta.label}
         </Button>
       ) : null}

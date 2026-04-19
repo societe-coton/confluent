@@ -1,6 +1,6 @@
 # Story 2.2: Dashboard — Empty State
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -306,3 +306,18 @@ claude-opus-4-6
 ### Change Log
 
 - **2026-04-16** — Story 2.2 initial implementation: introduced `components/confluent/` directory with `EmptyState` primitive + `EmptyDossiersIllustration` inline SVG, wired the dashboard route to render the empty state with the "Créer un dossier" CTA, added `/dashboard/dossiers/nouveau` placeholder so the CTA destination resolves. Typecheck/lint/build green; no new lint warnings; bundle delta +1.73 kB gzip JS, +0.07 kB gzip CSS.
+- **2026-04-19** — Code review patches applied (5/5): breadcrumb intermediate `/dashboard/dossiers` redirect, `nouveau` added to SEGMENT_LABELS, CTA upgraded to `h-11 px-4` for WCAG 44×44, redundant `[&>svg]:mx-auto` removed, sprint-status `last_updated` synchronized to today. Typecheck/lint/build re-verified green (6/6, 0 errors, same 3 tolerated warnings).
+
+### Review Findings
+
+_Code review on 2026-04-19 (3 layers: Blind Hunter, Edge Case Hunter, Acceptance Auditor). 34 raw findings → 5 patches, 4 deferred, 25 dismissed as noise / spec-allowed / false positives._
+
+- [x] [Review][Patch] Breadcrumb "Dossiers" intermediate segment links to a non-existent route [apps/web/src/components/layout/Breadcrumbs.tsx + apps/web/src/router.tsx] — Fixed: added `{ path: 'dashboard/dossiers', element: <Navigate to="/dashboard" replace /> }` in `router.tsx` so the intermediate breadcrumb link resolves home instead of hitting the nested 404.
+- [x] [Review][Patch] Last breadcrumb segment "nouveau" renders as raw lowercase slug [apps/web/src/components/layout/Breadcrumbs.tsx:3-8] — Fixed: added `nouveau: 'Nouveau'` to `SEGMENT_LABELS`.
+- [x] [Review][Patch] CTA touch target below WCAG 2.1 AA 44×44 minimum [apps/web/src/components/confluent/EmptyState.tsx:35] — Fixed: added `className="h-11 px-4"` override on the `<Button>` so the tap area is exactly 44×44+ (h-11 = 44px).
+- [x] [Review][Patch] Redundant `[&>svg]:mx-auto` selector on illustration wrapper [apps/web/src/components/confluent/EmptyState.tsx:27] — Fixed: removed `[&>svg]:mx-auto` — outer `items-center` alone handles centering for any `ReactNode` shape.
+- [x] [Review][Patch] Sprint-status `last_updated` date lags by 3 days [_bmad-output/implementation-artifacts/sprint-status.yaml:2] — Fixed: bumped both the comment on line 2 and the yaml field on line 38 to `2026-04-19`.
+- [x] [Review][Defer] Sidebar "Mes dossiers" loses active state on `/dashboard/dossiers/nouveau` [apps/web/src/components/layout/nav-items.ts:11] — `end: true` means the NavLink only activates on exact `/dashboard`. After the CTA click, no nav item is highlighted, breaking orientation. Deferred: the stub page lands proper wizard behaviour in Story 2.3; revisit sidebar-activation semantics (loosen `end`, or use a `className` callback) then.
+- [x] [Review][Defer] Illustration SVG does not scale with browser text-size override [apps/web/src/components/confluent/illustrations/EmptyDossiersIllustration.tsx:4-5] — Hard-coded `width={96} height={96}` (px) means WCAG SC 1.4.4 200%-text-zoom users see an unbalanced layout. Deferred to a future a11y pass when dark-mode / zoom audits land.
+- [x] [Review][Defer] `EmptyState` layout imbalance when `cta` is omitted [apps/web/src/components/confluent/EmptyState.tsx:32-36] — `gap-6 py-16` produces a title/description block with 64px top+bottom padding and a missing CTA feels like a loading skeleton. Deferred: no cta-less caller exists today; revisit at Story 3.5 (access-list empty) or Story 5.1 (admin-pipeline empty) alongside the `cva` variant extraction per pinned decision #6.
+- [x] [Review][Defer] Router child-path ordering has no guarding test [apps/web/src/router.tsx:19] — The new `dashboard/dossiers/nouveau` entry must stay before the `*` catch-all; nothing locks that order. Deferred: no test harness exists in Epic 2 (testing is out of scope per story Dev Notes); revisit when Vitest/RTL lands.

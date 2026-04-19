@@ -16,6 +16,7 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to="/dashboard" replace /> },
       { path: 'dashboard', element: <DashboardRoute /> },
       { path: 'dashboard/tableau-de-bord', element: <TableauDeBordRoute /> },
+      { path: 'dashboard/dossiers', element: <Navigate to="/dashboard" replace /> },
       { path: 'dashboard/dossiers/nouveau', element: <DossierNewRoute /> },
       { path: 'admin', element: <AdminRoute /> },
       { path: '*', element: <NotFoundRoute /> },
