@@ -1,5 +1,5 @@
 # generated: 2026-04-14
-# last_updated: 2026-04-15
+# last_updated: 2026-04-16
 # project: confluent
 # project_key: NOKEY
 # tracking_system: file-system
@@ -52,7 +52,7 @@ development_status:
   # ── Epic 2: Core Loop — Dashboard to Dossier (Frontend) ─────────────────────
   epic-2: in-progress
   2-1-app-shell-sidebar-layout: done
-  2-2-dashboard-empty-state: backlog
+  2-2-dashboard-empty-state: review
   2-3-dossier-creation-naming-step: backlog
   2-4-questionnaire-step-component-hardcoded-questions: backlog
   2-5-section-summary-inter-section-checkpoint: backlog
