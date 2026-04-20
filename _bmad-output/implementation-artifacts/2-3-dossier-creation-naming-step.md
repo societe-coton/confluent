@@ -1,6 +1,6 @@
 # Story 2.3: Dossier Creation — Naming Step
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -146,6 +146,29 @@ so that my project is clearly identified from the start.
     4. Type "Biosensio" → error disappears; press Enter → navigates to `/dashboard/dossiers/nouveau/questionnaire` (stub). Verify `localStorage.getItem('confluent_draft_name') === 'Biosensio'` via DevTools.
     5. Paste "  Biosensio  " (whitespace-padded) → submit → stored value is trimmed `"Biosensio"`.
     6. Navigate to `/dashboard/dossiers/biosensio` manually (no such route yet) — verify nested 404 inside the shell, and verify the breadcrumb DOES render on that path (it is not a wizard step; it will become a real dossier view in Story 2.6 / 3.2).
+
+### Review Findings
+
+Code review date: 2026-04-20. Three adversarial layers: Blind Hunter, Edge Case Hunter, Acceptance Auditor. ~50 raw findings → 6 patches, 5 defers, 28 dismissed (spec-pinned or noise). All decision-needed resolved.
+
+**Patches (to apply):**
+
+- [x] [Review][Patch] Add a guard on `/dashboard/dossiers/nouveau/questionnaire` that redirects to `/dashboard/dossiers/nouveau` when `localStorage.getItem('confluent_draft_name')` is missing — protects the wizard precondition for Story 2.4 [apps/web/src/routes/dashboard/dossiers/nouveau/questionnaire.tsx]
+- [x] [Review][Patch] Add `maxLength={120}` to the naming input and document the single-line/multiline input length convention in `ux-design-specification.md#Form Patterns` (120 chars single-line, 2000 chars multiline baseline, per-field overrides allowed) [apps/web/src/components/confluent/WizardInput.tsx, _bmad-output/planning-artifacts/ux-design-specification.md]
+- [x] [Review][Patch] Rehydrate the naming input from `localStorage` on mount — `useState(() => localStorage.getItem('confluent_draft_name') ?? '')` so back-navigation does not lose the draft [apps/web/src/routes/dashboard/dossiers/nouveau/index.tsx]
+- [x] [Review][Patch] Wrap the inline error in a persistent `aria-live="assertive" aria-atomic="true"` container (always in the DOM, text swaps inside) so repeat empty-submit re-announces to screen readers [apps/web/src/routes/dashboard/dossiers/nouveau/index.tsx]
+- [x] [Review][Patch] Create `apps/web/src/lib/sanitize.ts` exporting `stripNonPrintable(str)` that strips zero-width, soft-hyphen, RTL override, NUL, and other C0 controls; call it at submit time before the `.trim()` empty-check. Story 2.4 will reuse it for questionnaire answers [apps/web/src/lib/sanitize.ts, apps/web/src/routes/dashboard/dossiers/nouveau/index.tsx]
+- [x] [Review][Patch] Refocus the naming input after a validation error (forwarded ref on `WizardInput` → `useRef` in the form → `inputRef.current?.focus()` after `setShowError(true)`) — WCAG recommends focus-on-first-invalid-field on submit failure [apps/web/src/components/confluent/WizardInput.tsx, apps/web/src/routes/dashboard/dossiers/nouveau/index.tsx]
+
+**Deferred (acknowledged, not actionable now):**
+
+- [x] [Review][Defer] Concurrent tabs stomp `confluent_draft_name` (same key, no per-tab scope) — deferred, Epic 7 real API will solve naturally.
+- [x] [Review][Defer] Breadcrumb `handle` suppression has no "child un-suppresses parent" semantics; only `hideBreadcrumb === true` wins. Deferred — no concrete future route requires the inverse direction yet.
+- [x] [Review][Defer] `RouteHandle` cast in `Breadcrumbs.tsx` trusts `useMatches` output shape; a non-object `handle` would silently no-op. Deferred — spec explicitly pinned this exact cast pattern; a runtime shape-check is pure type-safety polish.
+- [x] [Review][Defer] Wizard step has no in-page cancel / back affordance (breadcrumb suppressed + no button) — user must rely on the browser back button. Deferred — UX decision outside the story's scope; revisit when Epic 2 ships and real user feedback arrives.
+- [x] [Review][Defer] Cleanup of `confluent_draft_name` (TTL, clear-on-success, clear-on-revisit) — deferred to Story 2.6 (dossier completion screen), which will call `localStorage.removeItem` once the full creation flow lands end-to-end. Track explicitly in 2.6's context.
+
+**Dismissed (spec-pinned, out-of-scope, or noise):** localStorage try/catch (spec: not needed), SSR safety (non-SSR app), `WizardInput` type lock (spec pinned #1), `className` Omit+redeclare (spec explicit), `autoFocus` concerns (spec pinned, "acceptable"), `aria-invalid || undefined` (spec pinned #8), no unit tests (Epic 2 out-of-scope), `<title>` inline (React 19 supports), `useMatches` perf (premature), URL normalization, magic-string localStorage key (spec pinned #3), `showError` not derived, deleted stub HMR (dev-only edge), arrow glyph RTL/SR (spec-pinned Unicode char), narrow nbsp vs U+202F (spec explicit `&nbsp;`), double-submit race (`navigate` idempotent), two `<title>` during transition (React 19 handles), `defaultValue + value`, `noValidate` without `required` (SPA), outer `<div>` vs `<form>` wrapper (semantically equivalent), Tailwind class ordering (cosmetic), whitespace-keystroke clears error (spec rationalized), IME composition (French-first app, accepted).
 
 ## Dev Notes
 

@@ -1,8 +1,8 @@
-import type { ComponentProps } from 'react'
+import type { ComponentPropsWithRef } from 'react'
 import { cn } from '@/lib/utils'
 
 export interface WizardInputProps
-  extends Omit<ComponentProps<'input'>, 'type' | 'className'> {
+  extends Omit<ComponentPropsWithRef<'input'>, 'type' | 'className'> {
   className?: string
 }
 

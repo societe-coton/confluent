@@ -670,6 +670,8 @@ The following components are used as-is from shadcn/ui with CSS variable token o
 
 **Validation timing:** Validate on blur, not on keypress. Avoids disruptive inline errors while the user is mid-typing.
 
+**Input length limits:** Single-line text inputs cap at `maxLength={120}` by default (project names, titles, recipient emails, short labels). Multiline textareas cap at `maxLength={2000}` by default (descriptions, comments, long-form answers). Individual fields may override when the context demands a different bound (e.g., a free-form "notes" textarea on an admin screen could raise to 5000; a short slug-like identifier could lower to 40). The caller sets `maxLength` on the primitive; wizard/form primitives (`WizardInput`, future `WizardTextarea`) do not hardcode a default so callers are forced to make the choice deliberately. Server-side validation in Epic 7 enforces the same bounds authoritatively.
+
 ### Navigation Patterns
 
 **Sidebar:** Active item shown with slightly darker background + `font-weight: 500`. No colored left border, no colored icon. One level of nesting maximum.
