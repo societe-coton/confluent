@@ -4,6 +4,7 @@ import DashboardRoute from '@/routes/dashboard'
 import TableauDeBordRoute from '@/routes/dashboard/tableau-de-bord'
 import DossierNewRoute from '@/routes/dashboard/dossiers/nouveau'
 import QuestionnaireRoute from '@/routes/dashboard/dossiers/nouveau/questionnaire'
+import RecapitulatifRoute from '@/routes/dashboard/dossiers/nouveau/recapitulatif'
 import AdminRoute from '@/routes/admin'
 import ShareRoute from '@/routes/share'
 import AuthRoute from '@/routes/auth'
@@ -26,6 +27,11 @@ export const router = createBrowserRouter([
       {
         path: 'dashboard/dossiers/nouveau/questionnaire',
         element: <QuestionnaireRoute />,
+        handle: { hideBreadcrumb: true },
+      },
+      {
+        path: 'dashboard/dossiers/nouveau/recapitulatif',
+        element: <RecapitulatifRoute />,
         handle: { hideBreadcrumb: true },
       },
       { path: 'admin', element: <AdminRoute /> },

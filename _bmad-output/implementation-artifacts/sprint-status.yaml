@@ -54,7 +54,7 @@ development_status:
   2-1-app-shell-sidebar-layout: done
   2-2-dashboard-empty-state: done
   2-3-dossier-creation-naming-step: done
-  2-4-questionnaire-step-component-hardcoded-questions: backlog
+  2-4-questionnaire-step-component-hardcoded-questions: done
   2-5-section-summary-inter-section-checkpoint: backlog
   2-6-completion-screen-dossier-display: backlog
   epic-2-retrospective: optional
