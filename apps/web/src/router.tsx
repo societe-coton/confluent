@@ -3,6 +3,7 @@ import { AppShell } from '@/components/layout/AppShell'
 import DashboardRoute from '@/routes/dashboard'
 import TableauDeBordRoute from '@/routes/dashboard/tableau-de-bord'
 import DossierNewRoute from '@/routes/dashboard/dossiers/nouveau'
+import QuestionnaireRoute from '@/routes/dashboard/dossiers/nouveau/questionnaire'
 import AdminRoute from '@/routes/admin'
 import ShareRoute from '@/routes/share'
 import AuthRoute from '@/routes/auth'
@@ -17,7 +18,16 @@ export const router = createBrowserRouter([
       { path: 'dashboard', element: <DashboardRoute /> },
       { path: 'dashboard/tableau-de-bord', element: <TableauDeBordRoute /> },
       { path: 'dashboard/dossiers', element: <Navigate to="/dashboard" replace /> },
-      { path: 'dashboard/dossiers/nouveau', element: <DossierNewRoute /> },
+      {
+        path: 'dashboard/dossiers/nouveau',
+        element: <DossierNewRoute />,
+        handle: { hideBreadcrumb: true },
+      },
+      {
+        path: 'dashboard/dossiers/nouveau/questionnaire',
+        element: <QuestionnaireRoute />,
+        handle: { hideBreadcrumb: true },
+      },
       { path: 'admin', element: <AdminRoute /> },
       { path: '*', element: <NotFoundRoute /> },
     ],

@@ -53,7 +53,7 @@ development_status:
   epic-2: in-progress
   2-1-app-shell-sidebar-layout: done
   2-2-dashboard-empty-state: done
-  2-3-dossier-creation-naming-step: backlog
+  2-3-dossier-creation-naming-step: review
   2-4-questionnaire-step-component-hardcoded-questions: backlog
   2-5-section-summary-inter-section-checkpoint: backlog
   2-6-completion-screen-dossier-display: backlog

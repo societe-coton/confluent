@@ -1,4 +1,6 @@
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useMatches } from 'react-router-dom'
+
+type RouteHandle = { hideBreadcrumb?: boolean } | undefined
 
 const SEGMENT_LABELS: Record<string, string> = {
   dashboard: 'Mes dossiers',
@@ -19,6 +21,12 @@ function toLabel(segment: string): string {
 
 export function Breadcrumbs() {
   const { pathname } = useLocation()
+  const matches = useMatches()
+  const suppressed = matches.some(
+    (m) => (m.handle as RouteHandle)?.hideBreadcrumb === true,
+  )
+  if (suppressed) return null
+
   const segments = pathname.split('/').filter(Boolean)
 
   if (segments.length < 2) return null
