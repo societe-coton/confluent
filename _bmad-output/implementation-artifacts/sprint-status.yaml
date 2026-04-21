@@ -1,5 +1,5 @@
 # generated: 2026-04-14
-# last_updated: 2026-04-21 (story 3-1 done — code review passed clean)
+# last_updated: 2026-04-21 (story 3-2 done — code-review patches applied)
 # project: confluent
 # project_key: NOKEY
 # tracking_system: file-system
@@ -62,7 +62,7 @@ development_status:
   # ── Epic 3: Entrepreneur Dashboard & Access Management (Frontend) ─────────────
   epic-3: in-progress
   3-1-dashboard-dossier-list-mocked: done
-  3-2-dossier-page-header-tab-navigation: backlog
+  3-2-dossier-page-header-tab-navigation: done
   3-3-metric-card-grid-analytics-timeline-d4: backlog
   3-4-access-list-row-status-dot-components: backlog
   3-5-share-panel-d5-sheet-component: backlog

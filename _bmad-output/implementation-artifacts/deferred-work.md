@@ -2,6 +2,16 @@
 
 Tracking items deliberately postponed during reviews. Each entry records where the deferral came from and why action was pushed out.
 
+## Deferred from: code review of 3-2-dossier-page-header-tab-navigation (2026-04-21)
+
+- **Magic string `'analytics'` duplicated across ≥4 sites** [[apps/web/src/routes/dashboard/dossiers/[slug].tsx:82,87,143,178](../../apps/web/src/routes/dashboard/dossiers/[slug].tsx#L82)] — extract a `TAB_VALUES` union when Story 3.3 opens this file for the MetricCard swap.
+- **`QUESTIONNAIRE_FLAT.filter` recomputed per render inside the `.map`** [[apps/web/src/routes/dashboard/dossiers/[slug].tsx:149-152](../../apps/web/src/routes/dashboard/dossiers/[slug].tsx#L149-L152)] — pre-existing from 2.6; revisit with `useMemo` if the content panel grows heavier.
+- **`headingRef.current?.focus()` lacks `{ preventScroll: true }`** [[apps/web/src/routes/dashboard/dossiers/[slug].tsx:61-63](../../apps/web/src/routes/dashboard/dossiers/[slug].tsx#L61-L63)] — pre-existing from 2.6; deep-linked `?tab=analytics` jump-scrolls to the H1. Deferred to dedicated a11y polish pass.
+- **`Tabs` root has no `aria-label`/`aria-labelledby`** [[apps/web/src/routes/dashboard/dossiers/[slug].tsx:140](../../apps/web/src/routes/dashboard/dossiers/[slug].tsx#L140)] — axe does not flag this (tabs provide labels), but screen readers announce an unnamed tablist on entry. Revisit alongside the AC16 full-page a11y audit.
+- **Scroll position is not preserved when switching tabs** — UX polish, not required by spec. Revisit if users report disorientation on the real 3.3 analytics panel.
+- **`TabsIndicator` has `absolute` positioning with no documented relative parent** [[apps/web/src/components/ui/tabs.tsx:68](../../apps/web/src/components/ui/tabs.tsx#L68)] — unused in 3.2 (forward-compat export per Pinned Decisions #6 / #12). Add `relative` wrapper or document the caller contract when a future underline-variant story consumes it.
+- **Rapid tab toggling via `setSearchParams(..., { replace: true })` may drop intermediate history entries** — spec-mandated (AC3/AC6/Pinned Decision #3). Logged for visibility; no action.
+
 ## Deferred from: code review of 2-6-completion-screen-dossier-display (2026-04-21)
 
 - **Same-slug collision between two differently-named dossiers silently overwrites the earlier one** [[apps/web/src/routes/dashboard/dossiers/nouveau/questionnaire.tsx:175-181](../../apps/web/src/routes/dashboard/dossiers/nouveau/questionnaire.tsx#L175-L181)] — Two dossiers named e.g. `"Biosensio"` and `"biosensio!!"` both slugify to `biosensio` and the second one's Q12 `setItem` unconditionally clobbers the first at `confluent_draft_biosensio` (the recap route's `updatedAt` merge runs after the overwrite). Accepted by Pinned Decision #6: Epic 2 assumes one active dossier per user; Epic 7 server-side identity introduces proper ownership + uniqueness and replaces the local key scheme.
