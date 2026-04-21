@@ -12,6 +12,7 @@ export interface QuestionnaireStepProps {
   onAdvance: (cleaned: string) => void
   onBack: () => void
   canGoBack: boolean
+  returnToSummary?: { onReturn: () => void }
 }
 
 const ANSWER_MAX_LENGTH = 2000
@@ -24,6 +25,7 @@ export function QuestionnaireStep({
   onAdvance,
   onBack,
   canGoBack,
+  returnToSummary,
 }: QuestionnaireStepProps) {
   const cleaned = stripNonPrintable(value).trim()
   const canAdvance = cleaned.length > 0
@@ -81,6 +83,16 @@ export function QuestionnaireStep({
         aria-labelledby={headingId}
         maxLength={ANSWER_MAX_LENGTH}
       />
+
+      {returnToSummary && (
+        <button
+          type="button"
+          onClick={returnToSummary.onReturn}
+          className="self-start min-h-11 text-xs text-muted-foreground hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)]"
+        >
+          <span aria-hidden="true">←</span> Retour au récapitulatif
+        </button>
+      )}
 
       <div className="flex flex-wrap items-center gap-3">
         <Button
