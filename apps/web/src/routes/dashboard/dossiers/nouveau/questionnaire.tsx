@@ -8,6 +8,7 @@ import {
 import { QuestionnaireProgress } from '@/features/questionnaire/components/QuestionnaireProgress'
 import { QuestionnaireStep } from '@/features/questionnaire/components/QuestionnaireStep'
 import { SectionSummary } from '@/features/questionnaire/components/SectionSummary'
+import { slugify } from '@/lib/slugify'
 
 const DRAFT_NAME_KEY = 'confluent_draft_name'
 
@@ -171,10 +172,17 @@ function QuestionnaireWizard({ dossierName }: { dossierName: string }) {
         view: 'question',
         updatedAt: new Date().toISOString(),
       }
-      localStorage.setItem(
-        draftAnswersKey(dossierName),
-        JSON.stringify(finalDraft),
-      )
+      const slug = slugify(dossierName)
+      const rawKey = draftAnswersKey(dossierName)
+      if (slug) {
+        localStorage.setItem(
+          `confluent_dossier_${slug}`,
+          JSON.stringify(finalDraft),
+        )
+        localStorage.removeItem(rawKey)
+      } else {
+        localStorage.setItem(rawKey, JSON.stringify(finalDraft))
+      }
       setDraft(finalDraft)
       navigate('/dashboard/dossiers/nouveau/recapitulatif')
       return

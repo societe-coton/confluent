@@ -2,6 +2,10 @@
 
 Tracking items deliberately postponed during reviews. Each entry records where the deferral came from and why action was pushed out.
 
+## Deferred from: code review of 2-6-completion-screen-dossier-display (2026-04-21)
+
+- **Same-slug collision between two differently-named dossiers silently overwrites the earlier one** [[apps/web/src/routes/dashboard/dossiers/nouveau/questionnaire.tsx:175-181](../../apps/web/src/routes/dashboard/dossiers/nouveau/questionnaire.tsx#L175-L181)] — Two dossiers named e.g. `"Biosensio"` and `"biosensio!!"` both slugify to `biosensio` and the second one's Q12 `setItem` unconditionally clobbers the first at `confluent_draft_biosensio` (the recap route's `updatedAt` merge runs after the overwrite). Accepted by Pinned Decision #6: Epic 2 assumes one active dossier per user; Epic 7 server-side identity introduces proper ownership + uniqueness and replaces the local key scheme.
+
 ## Deferred from: code review of 1-1-turborepo-monorepo-scaffold (2026-04-14)
 
 - **Shared package ships raw `.ts` as `main`/`types`** — works in-repo via bundlers and pnpm workspace symlink but a production `node dist/main` invocation that does not bundle `@confluent/shared` will fail at runtime (Node cannot parse TS). Revisit in Epic 10 when Docker multi-stage build and deployment strategy are defined.
