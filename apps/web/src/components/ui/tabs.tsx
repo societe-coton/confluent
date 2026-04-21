@@ -3,7 +3,6 @@
 // forward-compat (future underline-variant stories) but is not used in the
 // 3.2 JSX — the active-state visual is the filled pill via data-[active]:bg-card.
 
-import * as React from "react"
 import { Tabs as TabsPrimitive } from "@base-ui/react/tabs"
 
 import { cn } from "@/lib/utils"
