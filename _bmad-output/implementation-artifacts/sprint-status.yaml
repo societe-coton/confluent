@@ -1,5 +1,5 @@
 # generated: 2026-04-14
-# last_updated: 2026-04-22 (story 4-1 → done — code review complete, 4 patches applied)
+# last_updated: 2026-04-22 (story 4-2 → done — mobile dossier view, code review clean, 4 defers logged)
 # project: confluent
 # project_key: NOKEY
 # tracking_system: file-system
@@ -72,7 +72,7 @@ development_status:
   # ── Epic 4: Financeur — Shared Dossier View (Frontend) ──────────────────────
   epic-4: in-progress
   4-1-email-verification-screen-ui-only-mocked: done
-  4-2-financeur-dossier-view-mobile-layout: backlog
+  4-2-financeur-dossier-view-mobile-layout: done
   4-3-financeur-dossier-view-desktop-layout: backlog
   4-4-access-denied-page: backlog
   epic-4-retrospective: optional
