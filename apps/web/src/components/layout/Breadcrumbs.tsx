@@ -8,6 +8,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   dossiers: 'Dossiers',
   nouveau: 'Nouveau',
   admin: 'Admin',
+  questionnaire: 'Questionnaire',
 }
 
 function toLabel(segment: string): string {
