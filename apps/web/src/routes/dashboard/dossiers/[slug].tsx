@@ -7,10 +7,12 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { AccessListRow } from '@/components/confluent/AccessListRow'
 import { DossierField } from '@/components/confluent/DossierField'
 import { MetricCard } from '@/components/confluent/MetricCard'
+import { RevokeAccessDialog } from '@/components/confluent/RevokeAccessDialog'
 import { SharePanel } from '@/components/confluent/SharePanel'
 import { QUESTIONNAIRE, QUESTIONNAIRE_FLAT } from '@/data/questionnaire'
 import { MOCK_DOSSIERS } from '@/data/mock-dossiers'
 import { MOCK_ANALYTICS, type AccessEntry } from '@/data/mock-analytics'
+import { useCurrentUser } from '@/features/current-user/context'
 
 const TAB_VALUES = {
   content: 'content',
@@ -71,6 +73,14 @@ function deriveInitials(email: string): string {
   return '··'
 }
 
+function formatRevokedAt(date: Date): string {
+  return date.toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
 export default function DossierViewRoute() {
   const { slug } = useParams<{ slug: string }>()
   return <DossierView key={slug ?? 'no-slug'} />
@@ -80,10 +90,13 @@ function DossierView() {
   const { slug } = useParams<{ slug: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
   const headingRef = useRef<HTMLHeadingElement>(null)
+  const currentUser = useCurrentUser()
   const [shareOpen, setShareOpen] = useState(false)
   const [accessEntries, setAccessEntries] = useState<AccessEntry[]>(
     () => [...MOCK_ANALYTICS.accessEntries],
   )
+  const [entryToRevoke, setEntryToRevoke] = useState<AccessEntry | null>(null)
+  const revokingRef = useRef(false)
 
   const mock = slug ? MOCK_DOSSIERS.find((d) => d.slug === slug) : undefined
   const dossier = slug ? loadDossier(slug) : null
@@ -141,6 +154,34 @@ function DossierView() {
     ])
     toast.success(`Invitation envoyée à ${email}`)
     setShareOpen(false)
+  }
+
+  function handleRevokeClick(entry: AccessEntry) {
+    revokingRef.current = false
+    setEntryToRevoke(entry)
+  }
+
+  function handleConfirmRevoke(entry: AccessEntry) {
+    if (revokingRef.current) return
+    revokingRef.current = true
+    const now = new Date()
+    setAccessEntries((prev) =>
+      prev.map((e) => {
+        if (e.email !== entry.email || e.status === 'revoked') return e
+        return {
+          email: e.email,
+          initials: e.initials,
+          lastSeen: e.lastSeen,
+          sessionDuration: e.sessionDuration,
+          status: 'revoked' as const,
+          revokedAt: formatRevokedAt(now),
+          revokedAtIso: now.toISOString(),
+          revokedBy: currentUser.name,
+        }
+      }),
+    )
+    toast.success('Accès révoqué')
+    setEntryToRevoke(null)
   }
 
   return (
@@ -237,13 +278,23 @@ function DossierView() {
 
         <TabsContent value={TAB_VALUES.analytics}>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            {MOCK_ANALYTICS.metrics.map((metric) => (
-              <MetricCard
-                key={metric.label}
-                label={metric.label}
-                value={metric.value}
-              />
-            ))}
+            <MetricCard
+              key={MOCK_ANALYTICS.metrics[0].label}
+              label={MOCK_ANALYTICS.metrics[0].label}
+              value={accessEntries
+                .filter((e) => e.status !== 'revoked')
+                .length.toString()}
+            />
+            <MetricCard
+              key={MOCK_ANALYTICS.metrics[1].label}
+              label={MOCK_ANALYTICS.metrics[1].label}
+              value={MOCK_ANALYTICS.metrics[1].value}
+            />
+            <MetricCard
+              key={MOCK_ANALYTICS.metrics[2].label}
+              label={MOCK_ANALYTICS.metrics[2].label}
+              value={MOCK_ANALYTICS.metrics[2].value}
+            />
           </div>
 
           <section className="mt-8">
@@ -258,7 +309,11 @@ function DossierView() {
               ) : (
                 <ul role="list" className="m-0 list-none p-0">
                   {accessEntries.map((entry) => (
-                    <AccessListRow key={entry.email} entry={entry} />
+                    <AccessListRow
+                      key={entry.email}
+                      entry={entry}
+                      onRevokeClick={handleRevokeClick}
+                    />
                   ))}
                 </ul>
               )}
@@ -266,6 +321,15 @@ function DossierView() {
           </section>
         </TabsContent>
       </Tabs>
+
+      <RevokeAccessDialog
+        open={entryToRevoke !== null}
+        entry={entryToRevoke}
+        onOpenChange={(open) => {
+          if (!open) setEntryToRevoke(null)
+        }}
+        onConfirm={handleConfirmRevoke}
+      />
     </div>
   )
 }

@@ -1,8 +1,20 @@
 import { StatusDot } from '@/components/confluent/StatusDot'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import type { AccessEntry } from '@/data/mock-analytics'
 import { cn } from '@/lib/utils'
+
+function formatRevokedTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString('fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
 
 export interface AccessListRowProps {
   entry: AccessEntry
@@ -61,9 +73,20 @@ export function AccessListRow({
         </span>
         <StatusDot status={entry.status} />
         {entry.status === 'revoked' ? (
-          <span className="text-xs text-muted-foreground opacity-[0.55]">
-            Révoqué le {entry.revokedAt}
-          </span>
+          <Tooltip>
+            <TooltipTrigger
+              className="cursor-help rounded-sm text-xs text-muted-foreground opacity-[0.55] outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] focus-visible:opacity-100"
+              render={<span tabIndex={0} />}
+            >
+              Révoqué le {entry.revokedAt}
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>à {formatRevokedTime(entry.revokedAtIso)}</p>
+              <p className="mt-0.5 text-muted-foreground">
+                par {entry.revokedBy}
+              </p>
+            </TooltipContent>
+          </Tooltip>
         ) : (
           <Button
             type="button"

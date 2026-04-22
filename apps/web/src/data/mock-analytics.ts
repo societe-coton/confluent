@@ -15,7 +15,12 @@ interface AccessEntryBase {
 // "Révoqué le undefined" renders.
 export type AccessEntry =
   | (AccessEntryBase & { readonly status: 'active' | 'pending' })
-  | (AccessEntryBase & { readonly status: 'revoked'; readonly revokedAt: string })
+  | (AccessEntryBase & {
+      readonly status: 'revoked'
+      readonly revokedAt: string
+      readonly revokedAtIso: string
+      readonly revokedBy: string
+    })
 
 export interface AnalyticsMetric {
   readonly label: string
@@ -55,6 +60,8 @@ export const MOCK_ANALYTICS: Analytics = {
       lastSeen: 'Dernière session : il y a 5 jours · 2 vues',
       sessionDuration: '3m 41s',
       revokedAt: '16 avr. 2026',
+      revokedAtIso: '2026-04-16T14:32:00+02:00',
+      revokedBy: 'Marc Dubois',
     },
   ],
 } as const
