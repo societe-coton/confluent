@@ -10,6 +10,7 @@ import AdminRoute from '@/routes/admin'
 import AdminDossiersRoute from '@/routes/admin/dossiers'
 import AdminDossierDetailRoute from '@/routes/admin/dossiers/[slug]'
 import AdminQuestionnaireRoute from '@/routes/admin/questionnaire'
+import AdminUtilisateursRoute from '@/routes/admin/utilisateurs'
 import ShareRoute from '@/routes/share'
 import ShareDossierRoute from '@/routes/share/dossier'
 import AuthRoute from '@/routes/auth'
@@ -52,6 +53,7 @@ export const router = createBrowserRouter([
         handle: { hideBreadcrumb: true },
       },
       { path: 'admin/questionnaire', element: <AdminQuestionnaireRoute /> },
+      { path: 'admin/utilisateurs', element: <AdminUtilisateursRoute /> },
       { path: '*', element: <NotFoundRoute /> },
     ],
   },

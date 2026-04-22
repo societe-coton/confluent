@@ -9,6 +9,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   nouveau: 'Nouveau',
   admin: 'Admin',
   questionnaire: 'Questionnaire',
+  utilisateurs: 'Utilisateurs',
 }
 
 function toLabel(segment: string): string {
