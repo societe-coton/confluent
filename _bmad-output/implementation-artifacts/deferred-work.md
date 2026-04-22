@@ -2,6 +2,11 @@
 
 Tracking items deliberately postponed during reviews. Each entry records where the deferral came from and why action was pushed out.
 
+## Deferred from: code review of 3-4-access-list-row-status-dot-components (2026-04-22)
+
+- **`StatusDot` runtime TypeError on unknown API status** [[apps/web/src/components/confluent/StatusDot.tsx:18](../../apps/web/src/components/confluent/StatusDot.tsx#L18)] — `STATUS_COPY[status]` returns `undefined` for any runtime string outside the current 3-enum (`'active' | 'pending' | 'revoked'`); the subsequent destructure of `label` / `dotClass` throws `TypeError: Cannot destructure property 'label' of undefined`. TypeScript's discriminated-union narrowing protects compile-time callers inside this repo, but Story 8.3's real-API cutover may deliver widened status values (`'expired'`, `'archived'`, etc.) before the map is extended. No 3.4 action — mock fixture prevents runtime reach. Revisit in Story 8.3: add an exhaustive `switch` with a `never` fallback, or a runtime `if (!entry) return null` guard before destructure.
+- **`title={entry.email}` tooltip invisible on touch devices** [[apps/web/src/components/confluent/AccessListRow.tsx:40-42](../../apps/web/src/components/confluent/AccessListRow.tsx#L40-L42)] — on iOS/Android a truncated `arc@capital.fr` has no hover/tap disclosure UI; sighted touch users cannot recover hidden characters. Screen readers read the full email from the `<p>` text content, so AT is unaffected. Pre-existing from 3.3's self-applied review patch, not a 3.4 regression. Revisit alongside a mobile-UX pass — candidates: an expandable full-email surface on tap, a `<details>` disclosure, or a dedicated detail panel.
+
 ## Deferred from: code review of 3-3-metric-card-grid-analytics-timeline-d4 (2026-04-21)
 
 - **Révoquer button has no `onClick`, silent no-op** [[apps/web/src/routes/dashboard/dossiers/[slug].tsx:275-283](../../apps/web/src/routes/dashboard/dossiers/[slug].tsx#L275-L283)] — keyboard users reach it with Tab, press Enter, nothing happens, no visual feedback, no `disabled`/`aria-disabled` state. Story 3.6 (access-revocation-optimistic-mocked) owns the handler wiring. Cross-reference this item when creating Story 3.6's context.

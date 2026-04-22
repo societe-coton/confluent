@@ -2,12 +2,12 @@ import { useEffect, useRef } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { AccessListRow } from '@/components/confluent/AccessListRow'
 import { DossierField } from '@/components/confluent/DossierField'
 import { MetricCard } from '@/components/confluent/MetricCard'
 import { QUESTIONNAIRE, QUESTIONNAIRE_FLAT } from '@/data/questionnaire'
 import { MOCK_DOSSIERS } from '@/data/mock-dossiers'
 import { MOCK_ANALYTICS } from '@/data/mock-analytics'
-import { cn } from '@/lib/utils'
 
 const TAB_VALUES = {
   content: 'content',
@@ -212,83 +212,8 @@ export default function DossierViewRoute() {
                 </p>
               ) : (
                 <ul role="list" className="m-0 list-none p-0">
-                  {MOCK_ANALYTICS.accessEntries.map((entry, index) => (
-                  <li
-                    key={entry.email}
-                    className={cn(
-                      'flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between',
-                      entry.status === 'revoked' && 'opacity-[0.55]',
-                      index > 0 && 'border-t border-border',
-                    )}
-                  >
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span
-                        aria-hidden="true"
-                        className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground"
-                      >
-                        {entry.initials}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p
-                          className="truncate text-sm font-medium text-foreground"
-                          title={entry.email}
-                        >
-                          {entry.email}
-                        </p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {entry.lastSeen}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between gap-4 sm:justify-end">
-                      <span className="text-[22px] font-bold text-foreground tabular-nums">
-                        {entry.sessionDuration}
-                      </span>
-                      <span
-                        aria-label={
-                          entry.status === 'active'
-                            ? 'Statut : Actif'
-                            : entry.status === 'pending'
-                              ? 'Statut : En attente'
-                              : 'Statut : Révoqué'
-                        }
-                        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground"
-                      >
-                        <span
-                          aria-hidden="true"
-                          className={cn(
-                            'inline-block size-[7px] rounded-full',
-                            entry.status === 'active' &&
-                              'bg-[var(--status-active)]',
-                            entry.status === 'pending' &&
-                              'bg-[var(--status-pending)]',
-                            entry.status === 'revoked' &&
-                              'bg-[var(--status-neutral)]',
-                          )}
-                        />
-                        {entry.status === 'active'
-                          ? 'Actif'
-                          : entry.status === 'pending'
-                            ? 'En attente'
-                            : 'Révoqué'}
-                      </span>
-                      {entry.status === 'revoked' ? (
-                        <span className="text-xs text-muted-foreground">
-                          Révoqué le {entry.revokedAt}
-                        </span>
-                      ) : (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          aria-label={`Révoquer l'accès de ${entry.email}`}
-                          className="min-h-11"
-                        >
-                          Révoquer
-                        </Button>
-                      )}
-                    </div>
-                  </li>
+                  {MOCK_ANALYTICS.accessEntries.map((entry) => (
+                    <AccessListRow key={entry.email} entry={entry} />
                   ))}
                 </ul>
               )}
