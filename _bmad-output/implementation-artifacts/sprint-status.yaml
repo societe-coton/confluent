@@ -1,5 +1,5 @@
 # generated: 2026-04-14
-# last_updated: 2026-04-22 (story 4-4 → done — Access Denied Page code review complete; 0 patches, 1 defer, rest dismissed)
+# last_updated: 2026-04-22 (story 5-1 review → done)
 # project: confluent
 # project_key: NOKEY
 # tracking_system: file-system
@@ -78,8 +78,8 @@ development_status:
   epic-4-retrospective: optional
 
   # ── Epic 5: Admin — Back-office (Frontend) ───────────────────────────────────
-  epic-5: backlog
-  5-1-admin-layout-pipeline-dashboard: backlog
+  epic-5: in-progress
+  5-1-admin-layout-pipeline-dashboard: done
   5-2-admin-all-dossiers-list: backlog
   5-3-questionnaire-builder-ui-mocked: backlog
   5-4-user-management-ui-mocked: backlog

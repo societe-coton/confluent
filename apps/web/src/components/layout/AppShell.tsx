@@ -3,7 +3,7 @@ import { Separator } from '@/components/ui/separator'
 import { useCurrentUser } from '@/features/current-user/context'
 import { Breadcrumbs } from './Breadcrumbs'
 import { NavItem } from './NavItem'
-import { NAV_ITEMS } from './nav-items'
+import { ADMIN_NAV_ITEMS, NAV_ITEMS, type NavItemSpec } from './nav-items'
 import type { User } from '@confluent/shared'
 
 function SkipLink() {
@@ -17,7 +17,7 @@ function SkipLink() {
   )
 }
 
-function DesktopSidebar({ user }: { user: User }) {
+function DesktopSidebar({ user, navItems }: { user: User; navItems: NavItemSpec[] }) {
   return (
     <aside className="hidden w-60 shrink-0 flex-col bg-sidebar lg:flex">
       <div className="px-4 py-6 text-lg font-heading font-medium text-sidebar-foreground">
@@ -29,7 +29,7 @@ function DesktopSidebar({ user }: { user: User }) {
         className="flex-1 px-2 py-4"
       >
         <ul className="space-y-1">
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <li key={item.to}>
               <NavItem item={item} variant="desktop" />
             </li>
@@ -55,7 +55,7 @@ function DesktopSidebar({ user }: { user: User }) {
   )
 }
 
-function TabletRail({ user }: { user: User }) {
+function TabletRail({ user, navItems }: { user: User; navItems: NavItemSpec[] }) {
   const initial = (user.name.charAt(0) || '?').toUpperCase()
   return (
     <aside className="hidden w-[60px] shrink-0 flex-col items-center bg-sidebar md:flex lg:hidden">
@@ -71,7 +71,7 @@ function TabletRail({ user }: { user: User }) {
         className="flex-1 py-4"
       >
         <ul className="flex flex-col items-center gap-1">
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <li key={item.to}>
               <NavItem item={item} variant="rail" />
             </li>
@@ -93,14 +93,14 @@ function TabletRail({ user }: { user: User }) {
   )
 }
 
-function MobileBottomNav() {
+function MobileBottomNav({ navItems }: { navItems: NavItemSpec[] }) {
   return (
     <nav
       aria-label="Navigation principale"
       className="fixed inset-x-0 bottom-0 z-40 flex h-16 border-t border-sidebar-border bg-sidebar md:hidden"
     >
       <ul className="flex w-full">
-        {NAV_ITEMS.map((item) => (
+        {navItems.map((item) => (
           <li key={item.to} className="flex min-h-11 flex-1">
             <NavItem item={item} variant="bottom" />
           </li>
@@ -112,12 +112,13 @@ function MobileBottomNav() {
 
 export function AppShell() {
   const user = useCurrentUser()
+  const navItems = user.role === 'admin' ? ADMIN_NAV_ITEMS : NAV_ITEMS
 
   return (
     <div className="flex min-h-screen bg-background">
       <SkipLink />
-      <DesktopSidebar user={user} />
-      <TabletRail user={user} />
+      <DesktopSidebar user={user} navItems={navItems} />
+      <TabletRail user={user} navItems={navItems} />
       <main
         id="main-content"
         tabIndex={-1}
@@ -126,7 +127,7 @@ export function AppShell() {
         <Breadcrumbs />
         <Outlet />
       </main>
-      <MobileBottomNav />
+      <MobileBottomNav navItems={navItems} />
     </div>
   )
 }
