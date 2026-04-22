@@ -1,13 +1,16 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Sheet, SheetTrigger } from '@/components/ui/sheet'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { AccessListRow } from '@/components/confluent/AccessListRow'
 import { DossierField } from '@/components/confluent/DossierField'
 import { MetricCard } from '@/components/confluent/MetricCard'
+import { SharePanel } from '@/components/confluent/SharePanel'
 import { QUESTIONNAIRE, QUESTIONNAIRE_FLAT } from '@/data/questionnaire'
 import { MOCK_DOSSIERS } from '@/data/mock-dossiers'
-import { MOCK_ANALYTICS } from '@/data/mock-analytics'
+import { MOCK_ANALYTICS, type AccessEntry } from '@/data/mock-analytics'
 
 const TAB_VALUES = {
   content: 'content',
@@ -60,10 +63,27 @@ function resolveDisplayName(slug: string): string {
   return deslugifyForDisplay(slug)
 }
 
+function deriveInitials(email: string): string {
+  const localPart = email.split('@')[0] ?? ''
+  const alpha = localPart.replace(/[^a-zA-Z]+/g, '').toUpperCase()
+  if (alpha.length >= 2) return alpha.slice(0, 2)
+  if (alpha.length === 1) return `${alpha}·`
+  return '··'
+}
+
 export default function DossierViewRoute() {
+  const { slug } = useParams<{ slug: string }>()
+  return <DossierView key={slug ?? 'no-slug'} />
+}
+
+function DossierView() {
   const { slug } = useParams<{ slug: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
   const headingRef = useRef<HTMLHeadingElement>(null)
+  const [shareOpen, setShareOpen] = useState(false)
+  const [accessEntries, setAccessEntries] = useState<AccessEntry[]>(
+    () => [...MOCK_ANALYTICS.accessEntries],
+  )
 
   const mock = slug ? MOCK_DOSSIERS.find((d) => d.slug === slug) : undefined
   const dossier = slug ? loadDossier(slug) : null
@@ -108,6 +128,21 @@ export default function DossierViewRoute() {
     )
   }
 
+  function handleInvitationSubmit(email: string) {
+    setAccessEntries((prev) => [
+      {
+        email,
+        initials: deriveInitials(email),
+        status: 'pending',
+        lastSeen: "Invitation envoyée à l'instant",
+        sessionDuration: '—',
+      },
+      ...prev,
+    ])
+    toast.success(`Invitation envoyée à ${email}`)
+    setShareOpen(false)
+  }
+
   return (
     <div className="mx-auto max-w-[720px]">
       <title>{displayName} · Confluent</title>
@@ -141,13 +176,23 @@ export default function DossierViewRoute() {
         >
           {displayName}
         </h1>
-        <Button
-          type="button"
-          size="lg"
-          className="h-11 self-start px-4 sm:self-auto"
-        >
-          Partager
-        </Button>
+        <Sheet open={shareOpen} onOpenChange={setShareOpen}>
+          <SheetTrigger
+            render={
+              <Button
+                type="button"
+                size="lg"
+                className="h-11 self-start px-4 sm:self-auto"
+              >
+                Partager
+              </Button>
+            }
+          />
+          <SharePanel
+            existingEntries={accessEntries}
+            onSubmitInvitation={handleInvitationSubmit}
+          />
+        </Sheet>
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="mt-6">
@@ -206,13 +251,13 @@ export default function DossierViewRoute() {
               Accès &amp; partage
             </h2>
             <div className="mt-4 overflow-hidden rounded-lg border border-border bg-card">
-              {MOCK_ANALYTICS.accessEntries.length === 0 ? (
+              {accessEntries.length === 0 ? (
                 <p className="px-4 py-6 text-center text-sm text-muted-foreground">
                   Aucun destinataire pour le moment.
                 </p>
               ) : (
                 <ul role="list" className="m-0 list-none p-0">
-                  {MOCK_ANALYTICS.accessEntries.map((entry) => (
+                  {accessEntries.map((entry) => (
                     <AccessListRow key={entry.email} entry={entry} />
                   ))}
                 </ul>
