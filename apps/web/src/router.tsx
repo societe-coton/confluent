@@ -7,6 +7,8 @@ import QuestionnaireRoute from '@/routes/dashboard/dossiers/nouveau/questionnair
 import RecapitulatifRoute from '@/routes/dashboard/dossiers/nouveau/recapitulatif'
 import DossierViewRoute from '@/routes/dashboard/dossiers/[slug]'
 import AdminRoute from '@/routes/admin'
+import AdminDossiersRoute from '@/routes/admin/dossiers'
+import AdminDossierDetailRoute from '@/routes/admin/dossiers/[slug]'
 import ShareRoute from '@/routes/share'
 import ShareDossierRoute from '@/routes/share/dossier'
 import AuthRoute from '@/routes/auth'
@@ -42,6 +44,12 @@ export const router = createBrowserRouter([
         handle: { hideBreadcrumb: true },
       },
       { path: 'admin', element: <AdminRoute /> },
+      { path: 'admin/dossiers', element: <AdminDossiersRoute /> },
+      {
+        path: 'admin/dossiers/:slug',
+        element: <AdminDossierDetailRoute />,
+        handle: { hideBreadcrumb: true },
+      },
       { path: '*', element: <NotFoundRoute /> },
     ],
   },

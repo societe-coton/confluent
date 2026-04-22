@@ -7,7 +7,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   'tableau-de-bord': 'Tableau de bord',
   dossiers: 'Dossiers',
   nouveau: 'Nouveau',
-  admin: 'Administration',
+  admin: 'Admin',
 }
 
 function toLabel(segment: string): string {
