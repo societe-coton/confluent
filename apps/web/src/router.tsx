@@ -8,6 +8,7 @@ import RecapitulatifRoute from '@/routes/dashboard/dossiers/nouveau/recapitulati
 import DossierViewRoute from '@/routes/dashboard/dossiers/[slug]'
 import AdminRoute from '@/routes/admin'
 import ShareRoute from '@/routes/share'
+import ShareDossierRoute from '@/routes/share/dossier'
 import AuthRoute from '@/routes/auth'
 import NotFoundRoute from '@/routes/not-found'
 
@@ -45,5 +46,6 @@ export const router = createBrowserRouter([
     ],
   },
   { path: '/share/:token', element: <ShareRoute /> },
+  { path: '/share/:token/dossier', element: <ShareDossierRoute /> },
   { path: '/auth', element: <AuthRoute /> },
 ])

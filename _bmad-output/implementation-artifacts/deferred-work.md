@@ -2,6 +2,12 @@
 
 Tracking items deliberately postponed during reviews. Each entry records where the deferral came from and why action was pushed out.
 
+## Deferred from: code review of 4-1-email-verification-screen-ui-only-mocked (2026-04-22)
+
+- **`/share/` (token vide) ne matche aucune route** [[apps/web/src/router.tsx:48](../../apps/web/src/router.tsx#L48)] — Le catch-all `{ path: '*', element: <NotFoundRoute /> }` est imbriqué sous AppShell (router.tsx:45) et non au niveau top-level. Tout `/share/...` qui ne matche ni `/share/:token` ni `/share/:token/dossier` tombe en route-non-trouvée React Router silencieuse (écran blanc, console warning) au lieu du `NotFoundRoute` stylé. Préexistant, non introduit par 4.1. Reviser soit dans Epic 10 (production/deployment hardening), soit en créant une route `/share/*` catch-all sibling de `/share/:token`.
+- **`ShareDossierRoute` accessible en direct sans passer par la verification** [[apps/web/src/routes/share/dossier.tsx:3](../../apps/web/src/routes/share/dossier.tsx#L3)] — Un bookmark direct sur `/share/any-token/dossier` bypasse complètement l'écran de vérification de 4.1. Epic 4 AC explicite que Story 4.4 (Access Denied + mocked guard) gère le cas invalid/revoked. 4.1 est mocked/UI-only par design — aucun gate d'auth n'est prévu avant Epic 6.
+- **Pas de rate-limiting / debounce côté client sur le submit du formulaire** [[apps/web/src/routes/share/index.tsx:29-43](../../apps/web/src/routes/share/index.tsx#L29-L43)] — Le mock ne fait aucun appel réseau donc pas d'impact 4.1. Deviendra pertinent quand Epic 6 branchera le vrai endpoint magic-link : côté client un debounce simple (ex: interdire 2e submit < 5s) + côté serveur le rate-limit prévu par NFR + Story 6.5.
+
 ## Deferred from: code review of 3-6-access-revocation-optimistic-mocked (2026-04-22)
 
 - **`handleConfirmRevoke` keys by `email` — duplicate-email rows revoked together** [[apps/web/src/routes/dashboard/dossiers/[slug].tsx:164-178](../../apps/web/src/routes/dashboard/dossiers/[slug].tsx#L164-L178)] — `prev.map((e) => e.email !== entry.email ? e : {revoked entry})` revokes *every* non-revoked entry sharing the target email. Pre-existing stable-ID concern already tracked under the 3-3 deferral ("React keys `entry.email` can collide on duplicate values"); 3.6 inherits the risk without widening it. Epic 8.3's real-API `GET /v1/dossiers/:id/analytics` delivers stable share-link IDs that replace the email key.
