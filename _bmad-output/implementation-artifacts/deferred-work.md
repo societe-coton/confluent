@@ -2,6 +2,10 @@
 
 Tracking items deliberately postponed during reviews. Each entry records where the deferral came from and why action was pushed out.
 
+## Deferred from: code review of 4-4-access-denied-page (2026-04-22)
+
+- **No `<meta name="robots" content="noindex">` on the AccessDeniedPage (nor on any share route)** [[apps/web/src/routes/share/AccessDeniedPage.tsx](../../apps/web/src/routes/share/AccessDeniedPage.tsx)] — the denied surface has a distinctive `<title>` ("Accès refusé — Confluent") but no robots meta. If a public crawler ever reaches `/share/<invalid>`, the page will be indexed as legitimate content, leaking the surface existence. No 4.4 spec action — project-wide robots policy belongs with Epic 10 (production / deployment hardening) alongside the eventual `/sitemap.xml`, HTTP 403/404 status alignment at the edge, and CSP headers. Same class of concern as the `/share/` empty-token routing deferral from 4.1 (already tracked).
+
 ## Deferred from: code review of 4-3-financeur-dossier-view-desktop-layout (2026-04-22)
 
 - **Deep-link `#section-id` on load highlights "Présentation" until observer fires** [[apps/web/src/routes/share/dossier.tsx:10](../../apps/web/src/routes/share/dossier.tsx#L10)] — AC7 mandates `useState<string>(QUESTIONNAIRE[0].id)` as the initial value regardless of URL fragment. A user landing on `/share/:token/dossier#finances-equipe` sees "Présentation" marked active for the first animation frame (and at desktop, `lg:text-foreground` briefly highlights the wrong link) until the IntersectionObserver's initial callback settles. On short viewports where the hash-target section sits outside the `-96px 0px -60% 0px` detection band at rest, the wrong highlight can persist. Not in 4.3 spec scope — hash-fragment deep-link handling is not specified. Revisit when bookmarkable-section-state becomes a product requirement (likely alongside Story 8.3 financeur-session telemetry, which may need hash-aware analytics).

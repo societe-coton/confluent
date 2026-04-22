@@ -1,5 +1,5 @@
 # generated: 2026-04-14
-# last_updated: 2026-04-22 (story 4-3 → done — financeur dossier desktop layout code-review complete, 3 deferrals logged)
+# last_updated: 2026-04-22 (story 4-4 → done — Access Denied Page code review complete; 0 patches, 1 defer, rest dismissed)
 # project: confluent
 # project_key: NOKEY
 # tracking_system: file-system
@@ -74,7 +74,7 @@ development_status:
   4-1-email-verification-screen-ui-only-mocked: done
   4-2-financeur-dossier-view-mobile-layout: done
   4-3-financeur-dossier-view-desktop-layout: done
-  4-4-access-denied-page: backlog
+  4-4-access-denied-page: done
   epic-4-retrospective: optional
 
   # ── Epic 5: Admin — Back-office (Frontend) ───────────────────────────────────

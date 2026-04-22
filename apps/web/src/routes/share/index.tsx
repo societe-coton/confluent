@@ -5,11 +5,21 @@ import { ConfluentWordmark } from '@/components/confluent/ConfluentWordmark'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { stripNonPrintable } from '@/lib/sanitize'
+import {
+  isValidShareToken,
+  type ValidShareToken,
+} from '@/data/mock-tokens'
+import { AccessDeniedPage } from '@/routes/share/AccessDeniedPage'
 
 const MOCK_SEND_DELAY_MS = 1000
 
 export default function ShareRoute() {
   const { token } = useParams<{ token: string }>()
+  if (!isValidShareToken(token)) return <AccessDeniedPage />
+  return <ShareVerificationForm token={token} />
+}
+
+function ShareVerificationForm({ token }: { token: ValidShareToken }) {
   const navigate = useNavigate()
   const inputRef = useRef<HTMLInputElement>(null)
   const timerRef = useRef<number | null>(null)
@@ -38,7 +48,7 @@ export default function ShareRoute() {
     setSubmitting(true)
     timerRef.current = window.setTimeout(() => {
       timerRef.current = null
-      navigate(`/share/${encodeURIComponent(token ?? '')}/dossier`)
+      navigate(`/share/${encodeURIComponent(token)}/dossier`)
     }, MOCK_SEND_DELAY_MS)
   }
 

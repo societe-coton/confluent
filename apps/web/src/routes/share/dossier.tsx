@@ -1,12 +1,21 @@
 import { useEffect, useState } from 'react'
+import { useParams } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { ConfluentWordmark } from '@/components/confluent/ConfluentWordmark'
 import { DossierField } from '@/components/confluent/DossierField'
 import { QUESTIONNAIRE, QUESTIONNAIRE_FLAT } from '@/data/questionnaire'
 import { MOCK_DOSSIER_DETAIL } from '@/data/mock-dossier'
+import { isValidShareToken } from '@/data/mock-tokens'
+import { AccessDeniedPage } from '@/routes/share/AccessDeniedPage'
 import { cn } from '@/lib/utils'
 
 export default function ShareDossierRoute() {
+  const { token } = useParams<{ token: string }>()
+  if (!isValidShareToken(token)) return <AccessDeniedPage />
+  return <ShareDossierView />
+}
+
+function ShareDossierView() {
   const [activeSectionId, setActiveSectionId] = useState<string>(
     QUESTIONNAIRE[0].id,
   )
