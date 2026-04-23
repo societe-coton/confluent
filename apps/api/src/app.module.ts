@@ -9,6 +9,7 @@ import { PrismaModule } from './prisma/prisma.module'
 import { AuthModule } from './modules/auth/auth.module'
 import { AuditModule } from './modules/audit/audit.module'
 import { ShareLinksModule } from './modules/share-links/share-links.module'
+import { DossiersModule } from './modules/dossiers/dossiers.module'
 import { RateLimitAuditInterceptor } from './common/interceptors/rate-limit-audit.interceptor'
 
 @Module({
@@ -25,6 +26,7 @@ import { RateLimitAuditInterceptor } from './common/interceptors/rate-limit-audi
     AuditModule,
     AuthModule,
     ShareLinksModule,
+    DossiersModule,
   ],
   controllers: [AppController],
   providers: [

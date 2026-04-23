@@ -10,4 +10,16 @@ export const dossierSchema = z.object({
   updatedAt: z.string().datetime(),
 });
 
+export const createDossierSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+});
+
+export const updateDossierSchema = z
+  .object({
+    name: z.string().trim().min(1).max(200).optional(),
+  })
+  .refine((v) => v.name !== undefined, { message: 'At least one field must be provided.' });
+
 export type Dossier = z.infer<typeof dossierSchema>;
+export type CreateDossierInput = z.infer<typeof createDossierSchema>;
+export type UpdateDossierInput = z.infer<typeof updateDossierSchema>;

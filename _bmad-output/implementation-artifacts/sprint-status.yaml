@@ -96,8 +96,8 @@ development_status:
   epic-6-retrospective: optional
 
   # ── Epic 7: API — Dossiers & Questionnaire ──────────────────────────────────
-  epic-7: backlog
-  7-1-dossiers-api-crud-endpoints: backlog
+  epic-7: in-progress
+  7-1-dossiers-api-crud-endpoints: done
   7-2-questionnaire-answers-api-real-auto-save: backlog
   7-3-questionnaire-schema-versioning-fr14: backlog
   7-4-document-upload-fr4-fr5: backlog
