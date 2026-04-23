@@ -47,4 +47,10 @@ export class DossiersController {
   async delete(@Req() req: Request, @Param('id') id: string): Promise<void> {
     await this.service.delete(id, currentUser(req).id)
   }
+
+  @Post(':id/submit')
+  @HttpCode(200)
+  submit(@Req() req: Request, @Param('id') id: string): Promise<Dossier> {
+    return this.service.submit(id, currentUser(req).id)
+  }
 }

@@ -3,6 +3,7 @@ import { NotFoundException } from '@nestjs/common'
 import { DossiersService } from './dossiers.service'
 import { PrismaService } from '../../prisma/prisma.service'
 import { QuestionnairesService } from '../questionnaires/questionnaires.service'
+import { ClassificationService } from '../classification/classification.service'
 
 interface PrismaMock {
   dossier: {
@@ -47,6 +48,12 @@ async function instantiate(
         useValue: {
           ensureBootstrap,
           getVersion: jest.fn().mockResolvedValue(null),
+        },
+      },
+      {
+        provide: ClassificationService,
+        useValue: {
+          classify: jest.fn().mockResolvedValue({ sector: null, maturityStage: null }),
         },
       },
     ],

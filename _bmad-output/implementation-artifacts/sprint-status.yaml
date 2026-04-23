@@ -101,7 +101,7 @@ development_status:
   7-2-questionnaire-answers-api-real-auto-save: done
   7-3-questionnaire-schema-versioning-fr14: done
   7-4-document-upload-fr4-fr5: done
-  7-5-automatic-dossier-classification-fr8: backlog
+  7-5-automatic-dossier-classification-fr8: done
   7-6-frontend-replace-mocks-dossier-api: backlog
   epic-7-retrospective: optional
 

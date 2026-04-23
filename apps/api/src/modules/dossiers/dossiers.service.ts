@@ -3,6 +3,7 @@ import type { Dossier } from '@prisma/client'
 import { PrismaService } from '../../prisma/prisma.service'
 import { slugify } from '../../common/slug'
 import { QuestionnairesService } from '../questionnaires/questionnaires.service'
+import { ClassificationService } from '../classification/classification.service'
 
 export interface CreateDossierParams {
   userId: string
@@ -20,6 +21,7 @@ export class DossiersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly questionnaires: QuestionnairesService,
+    private readonly classification: ClassificationService,
   ) {}
 
   async create(params: CreateDossierParams): Promise<Dossier> {
@@ -70,6 +72,15 @@ export class DossiersService {
   async delete(id: string, userId: string): Promise<void> {
     const dossier = await this.getByIdForUser(id, userId)
     await this.prisma.dossier.delete({ where: { id: dossier.id } })
+  }
+
+  async submit(id: string, userId: string): Promise<Dossier> {
+    const dossier = await this.getByIdForUser(id, userId)
+    await this.classification.classify(dossier.id)
+    return this.prisma.dossier.update({
+      where: { id: dossier.id },
+      data: { submittedAt: new Date() },
+    })
   }
 
   private async uniqueSlug(base: string, ignoreDossierId?: string): Promise<string> {
