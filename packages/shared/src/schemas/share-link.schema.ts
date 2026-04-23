@@ -12,5 +12,10 @@ export const shareLinkSchema = z.object({
   revokedAt: z.string().datetime().nullable(),
 });
 
+export const createShareLinkSchema = z.object({
+  recipientEmail: z.string().trim().toLowerCase().email(),
+});
+
 export type ShareLinkStatus = z.infer<typeof shareLinkStatusSchema>;
 export type ShareLink = z.infer<typeof shareLinkSchema>;
+export type CreateShareLinkInput = z.infer<typeof createShareLinkSchema>;

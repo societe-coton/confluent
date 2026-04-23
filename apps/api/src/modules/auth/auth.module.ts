@@ -15,9 +15,10 @@ import { JwtAuthGuard } from './guards/jwt.guard'
   providers: [
     AuthService,
     JwtStrategy,
-    { provide: EMAIL_TRANSPORT, useClass: NodemailerTransport },
+    NodemailerTransport,
+    { provide: EMAIL_TRANSPORT, useExisting: NodemailerTransport },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
   ],
-  exports: [AuthService, JwtModule, PassportModule],
+  exports: [AuthService, JwtModule, PassportModule, EMAIL_TRANSPORT],
 })
 export class AuthModule {}

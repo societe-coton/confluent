@@ -106,8 +106,8 @@ development_status:
   epic-7-retrospective: optional
 
   # ── Epic 8: API — Sharing, Analytics & Audit ────────────────────────────────
-  epic-8: backlog
-  8-1-share-link-generation-email-invitation-fr16-fr40: backlog
+  epic-8: in-progress
+  8-1-share-link-generation-email-invitation-fr16-fr40: done
   8-2-share-link-listing-revocation-fr19-fr20: backlog
   8-3-financeur-session-tracking-analytics-fr23: backlog
   8-4-audit-log-admin-actions-access-history-fr24-fr26: backlog
