@@ -99,7 +99,7 @@ development_status:
   epic-7: in-progress
   7-1-dossiers-api-crud-endpoints: done
   7-2-questionnaire-answers-api-real-auto-save: done
-  7-3-questionnaire-schema-versioning-fr14: backlog
+  7-3-questionnaire-schema-versioning-fr14: done
   7-4-document-upload-fr4-fr5: backlog
   7-5-automatic-dossier-classification-fr8: backlog
   7-6-frontend-replace-mocks-dossier-api: backlog

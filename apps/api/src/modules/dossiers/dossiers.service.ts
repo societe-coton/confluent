@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common'
 import type { Dossier } from '@prisma/client'
 import { PrismaService } from '../../prisma/prisma.service'
 import { slugify } from '../../common/slug'
+import { QuestionnairesService } from '../questionnaires/questionnaires.service'
 
 export interface CreateDossierParams {
   userId: string
@@ -16,18 +17,21 @@ export interface UpdateDossierParams {
 
 @Injectable()
 export class DossiersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly questionnaires: QuestionnairesService,
+  ) {}
 
   async create(params: CreateDossierParams): Promise<Dossier> {
     const baseSlug = slugify(params.name)
     const slug = await this.uniqueSlug(baseSlug)
-    const questionnaireVersionId = await this.ensureDefaultQuestionnaireVersion()
+    const version = await this.questionnaires.ensureBootstrap()
     return this.prisma.dossier.create({
       data: {
         userId: params.userId,
         name: params.name,
         slug,
-        questionnaireVersionId,
+        questionnaireVersionId: version.id,
       },
     })
   }
@@ -45,6 +49,12 @@ export class DossiersService {
       throw new NotFoundException({ code: 'DOSSIER_NOT_FOUND', message: 'Dossier not found.' })
     }
     return dossier
+  }
+
+  async getWithQuestionnaire(id: string, userId: string) {
+    const dossier = await this.getByIdForUser(id, userId)
+    const snapshot = await this.questionnaires.getVersion(dossier.questionnaireVersionId)
+    return { ...dossier, questionnaireVersion: snapshot }
   }
 
   async update(params: UpdateDossierParams): Promise<Dossier> {
@@ -72,17 +82,5 @@ export class DossiersService {
     let n = 2
     while (taken.has(`${base}-${n}`)) n += 1
     return `${base}-${n}`
-  }
-
-  private async ensureDefaultQuestionnaireVersion(): Promise<string> {
-    const existing = await this.prisma.questionnaireVersion.findFirst({
-      where: { isPublished: true },
-      orderBy: { version: 'desc' },
-    })
-    if (existing) return existing.id
-    const created = await this.prisma.questionnaireVersion.create({
-      data: { version: 1, isPublished: true },
-    })
-    return created.id
   }
 }

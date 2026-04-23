@@ -2,6 +2,7 @@ import { Test } from '@nestjs/testing'
 import { NotFoundException } from '@nestjs/common'
 import { DossiersService } from './dossiers.service'
 import { PrismaService } from '../../prisma/prisma.service'
+import { QuestionnairesService } from '../questionnaires/questionnaires.service'
 
 interface PrismaMock {
   dossier: {
@@ -33,9 +34,22 @@ function buildPrisma(): PrismaMock {
   }
 }
 
-async function instantiate(prisma: PrismaMock): Promise<DossiersService> {
+async function instantiate(
+  prisma: PrismaMock,
+  ensureBootstrap: jest.Mock = jest.fn().mockResolvedValue({ id: 'qv-1', version: 1 }),
+): Promise<DossiersService> {
   const moduleRef = await Test.createTestingModule({
-    providers: [DossiersService, { provide: PrismaService, useValue: prisma }],
+    providers: [
+      DossiersService,
+      { provide: PrismaService, useValue: prisma },
+      {
+        provide: QuestionnairesService,
+        useValue: {
+          ensureBootstrap,
+          getVersion: jest.fn().mockResolvedValue(null),
+        },
+      },
+    ],
   }).compile()
   return moduleRef.get(DossiersService)
 }
@@ -61,17 +75,16 @@ describe('DossiersService', () => {
     expect(result.slug).toBe('biosensio-2')
   })
 
-  it('creates the default questionnaire version if none exists', async () => {
+  it('uses the questionnaire bootstrap to resolve the version id', async () => {
     const prisma = buildPrisma()
-    prisma.questionnaireVersion.findFirst.mockResolvedValue(null)
-    prisma.questionnaireVersion.create.mockResolvedValue({ id: 'qv-bootstrap', version: 1 })
+    const ensureBootstrap = jest.fn().mockResolvedValue({ id: 'qv-bootstrap', version: 1 })
     prisma.dossier.create.mockImplementation(async (args: { data: Record<string, unknown> }) =>
       Promise.resolve({ id: 'd-new', ...args.data }),
     )
-    const svc = await instantiate(prisma)
+    const svc = await instantiate(prisma, ensureBootstrap)
 
     await svc.create({ userId: 'u-1', name: 'Foo' })
-    expect(prisma.questionnaireVersion.create).toHaveBeenCalled()
+    expect(ensureBootstrap).toHaveBeenCalled()
     expect(prisma.dossier.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ questionnaireVersionId: 'qv-bootstrap' }),

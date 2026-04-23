@@ -29,8 +29,8 @@ export class DossiersController {
   }
 
   @Get(':id')
-  getOne(@Req() req: Request, @Param('id') id: string): Promise<Dossier> {
-    return this.service.getByIdForUser(id, currentUser(req).id)
+  getOne(@Req() req: Request, @Param('id') id: string) {
+    return this.service.getWithQuestionnaire(id, currentUser(req).id)
   }
 
   @Patch(':id')
