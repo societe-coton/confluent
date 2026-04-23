@@ -14,6 +14,9 @@ export const auditActionSchema = z.enum([
   'user_reactivated',
   'rate_limit_exceeded',
   'share_link_access_denied',
+  'admin_edited_field',
+  'admin_uploaded_document',
+  'admin_revoked_share_link',
 ]);
 
 export const auditLogSchema = z.object({
