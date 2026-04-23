@@ -14,6 +14,7 @@ import AdminUtilisateursRoute from '@/routes/admin/utilisateurs'
 import ShareRoute from '@/routes/share'
 import ShareDossierRoute from '@/routes/share/dossier'
 import AuthRoute from '@/routes/auth'
+import AuthVerifyRoute from '@/routes/auth/verify'
 import NotFoundRoute from '@/routes/not-found'
 
 export const router = createBrowserRouter([
@@ -60,4 +61,5 @@ export const router = createBrowserRouter([
   { path: '/share/:token', element: <ShareRoute /> },
   { path: '/share/:token/dossier', element: <ShareDossierRoute /> },
   { path: '/auth', element: <AuthRoute /> },
+  { path: '/auth/verify', element: <AuthVerifyRoute /> },
 ])

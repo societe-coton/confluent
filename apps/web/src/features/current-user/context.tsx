@@ -1,8 +1,9 @@
-// Dev-only role impersonation (Story 5.1). Replaced by Epic 6.3's JWT
-// session (architecture.md:164-170) when real auth wiring lands.
+// Current user resolution: prefers the real JWT session from `authStore` (Epic 6.6),
+// falls back to the dev-only `?as=...` impersonation fixture for demo/offline flows.
 
-import { createContext, use, useState, type ReactNode } from 'react'
+import { createContext, use, useEffect, useState, type ReactNode } from 'react'
 import type { CurrentUser } from '@confluent/shared'
+import { getAuthState, subscribeAuth, type AuthUser } from '@/features/auth/auth-store'
 
 export const MOCK_ENTREPRENEUR_USER: CurrentUser = {
   id: 'mock-entrepreneur-1',
@@ -20,7 +21,7 @@ export const MOCK_ADMIN_USER: CurrentUser = {
 
 export const DEV_ROLE_STORAGE_KEY = 'confluent_dev_role'
 
-function resolveCurrentUser(): CurrentUser {
+function resolveImpersonatedUser(): CurrentUser {
   if (typeof window === 'undefined') return MOCK_ENTREPRENEUR_USER
   try {
     const url = new URL(window.location.href)
@@ -37,10 +38,30 @@ function resolveCurrentUser(): CurrentUser {
   }
 }
 
+function fromAuth(authUser: AuthUser): CurrentUser {
+  return {
+    id: authUser.id,
+    name: authUser.email,
+    email: authUser.email,
+    role: authUser.role,
+  }
+}
+
+function resolveCurrentUser(): CurrentUser {
+  const { user } = getAuthState()
+  return user ? fromAuth(user) : resolveImpersonatedUser()
+}
+
 const CurrentUserContext = createContext<CurrentUser | null>(null)
 
 export function CurrentUserProvider({ children }: { children: ReactNode }) {
-  const [user] = useState<CurrentUser>(resolveCurrentUser)
+  const [user, setUser] = useState<CurrentUser>(resolveCurrentUser)
+  useEffect(() => {
+    const unsubscribe = subscribeAuth(() => setUser(resolveCurrentUser()))
+    return () => {
+      unsubscribe()
+    }
+  }, [])
   return <CurrentUserContext value={user}>{children}</CurrentUserContext>
 }
 
