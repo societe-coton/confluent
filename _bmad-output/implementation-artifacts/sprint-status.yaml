@@ -117,7 +117,7 @@ development_status:
   # ── Epic 9: API — Administration ────────────────────────────────────────────
   epic-9: in-progress
   9-1-admin-dossier-access-editing-fr9-fr10-fr35: done
-  9-2-questionnaire-builder-persistence-fr13-fr14-fr15: backlog
+  9-2-questionnaire-builder-persistence-fr13-fr14-fr15: done
   9-3-user-management-persistence-fr32-fr33: backlog
   9-4-admin-analytics-platform-pipeline-fr25-fr34: backlog
   9-5-admin-share-link-revocation-fr22: backlog
