@@ -1,9 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing'
 import { INestApplication } from '@nestjs/common'
 import request from 'supertest'
-import { App } from 'supertest/types'
+import type { App } from 'supertest/types'
 import { AppModule } from './../src/app.module'
 import { PrismaService } from './../src/prisma/prisma.service'
+import { EMAIL_TRANSPORT } from './../src/modules/auth/email/email-transport'
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>
@@ -12,10 +13,15 @@ describe('AppController (e2e)', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
-      // No live database in this environment — stub lifecycle hooks so the
-      // module boots without attempting to open a Prisma connection.
       .overrideProvider(PrismaService)
-      .useValue({ onModuleInit: async () => {}, onModuleDestroy: async () => {} })
+      .useValue({
+        onModuleInit: async () => {},
+        onModuleDestroy: async () => {},
+        user: { findUnique: jest.fn() },
+        magicLinkToken: { create: jest.fn() },
+      })
+      .overrideProvider(EMAIL_TRANSPORT)
+      .useValue({ sendMail: jest.fn() })
       .compile()
 
     app = moduleFixture.createNestApplication()
