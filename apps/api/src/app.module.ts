@@ -1,12 +1,18 @@
-import type { UserRole } from '@confluent/shared'
-
 import { Module } from '@nestjs/common'
+import { ConfigModule } from '@nestjs/config'
 import { AppController } from './app.controller'
-
-export type _CrossWorkspaceTypeCheck = UserRole
+import { validateConfig } from './config/config.schema'
+import { PrismaModule } from './prisma/prisma.module'
 
 @Module({
-  imports: [],
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      validate: validateConfig,
+      envFilePath: ['.env.local', '.env'],
+    }),
+    PrismaModule,
+  ],
   controllers: [AppController],
   providers: [],
 })

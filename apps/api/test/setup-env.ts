@@ -1,0 +1,14 @@
+process.env.DATABASE_URL ??= 'postgresql://test:test@localhost:5432/test'
+process.env.PORT ??= '3000'
+process.env.NODE_ENV ??= 'test'
+process.env.FRONTEND_URL ??= 'http://localhost:5173'
+process.env.SMTP_HOST ??= 'localhost'
+process.env.SMTP_PORT ??= '1025'
+process.env.SMTP_FROM ??= 'noreply@confluent.local'
+process.env.JWT_SECRET ??= 'a'.repeat(32)
+process.env.JWT_REFRESH_SECRET ??= 'b'.repeat(32)
+process.env.S3_ENDPOINT ??= 'http://localhost:9000'
+process.env.S3_REGION ??= 'us-east-1'
+process.env.S3_BUCKET ??= 'confluent-dev'
+process.env.S3_ACCESS_KEY ??= 'minioadmin'
+process.env.S3_SECRET_KEY ??= 'minioadmin'

@@ -1,0 +1,183 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum user_role {
+  entrepreneur
+  financeur
+  admin
+
+  @@map("user_role")
+}
+
+enum share_link_status {
+  pending
+  active
+  revoked
+  expired
+
+  @@map("share_link_status")
+}
+
+enum field_type {
+  text
+  textarea
+  email
+  number
+  date
+  select
+  checkbox
+  file
+
+  @@map("field_type")
+}
+
+enum audit_action {
+  magic_link_requested
+  magic_link_consumed
+  share_link_created
+  share_link_viewed
+  share_link_revoked
+  dossier_created
+  dossier_updated
+  dossier_classified
+  questionnaire_version_published
+  user_deactivated
+  user_reactivated
+
+  @@map("audit_action")
+}
+
+model User {
+  id        String    @id @default(uuid())
+  email     String    @unique
+  role      user_role
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  dossiers         Dossier[]
+  magicLinkTokens  MagicLinkToken[]
+  auditLogsAsActor AuditLog[]       @relation("AuditLogActor")
+
+  @@map("users")
+}
+
+model MagicLinkToken {
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id")
+  token      String    @unique
+  expiresAt  DateTime  @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("magic_link_tokens")
+}
+
+model QuestionnaireVersion {
+  id          String   @id @default(uuid())
+  version     Int      @unique
+  isPublished Boolean  @default(false) @map("is_published")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  fields   QuestionnaireField[]
+  dossiers Dossier[]
+
+  @@map("questionnaire_versions")
+}
+
+model QuestionnaireField {
+  id         String     @id @default(uuid())
+  versionId  String     @map("version_id")
+  section    String
+  label      String
+  fieldType  field_type @map("field_type")
+  required   Boolean    @default(false)
+  orderIndex Int        @map("order_index")
+
+  version QuestionnaireVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  answers DossierAnswer[]
+
+  @@index([versionId, orderIndex])
+  @@map("questionnaire_fields")
+}
+
+model Dossier {
+  id                     String   @id @default(uuid())
+  userId                 String   @map("user_id")
+  name                   String
+  slug                   String   @unique
+  questionnaireVersionId String   @map("questionnaire_version_id")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+
+  user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questionnaireVersion QuestionnaireVersion @relation(fields: [questionnaireVersionId], references: [id])
+  answers              DossierAnswer[]
+  shareLinks           ShareLink[]
+  auditLogs            AuditLog[]
+
+  @@index([userId])
+  @@index([slug])
+  @@map("dossiers")
+}
+
+model DossierAnswer {
+  id        String   @id @default(uuid())
+  dossierId String   @map("dossier_id")
+  fieldId   String   @map("field_id")
+  value     String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  dossier Dossier            @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  field   QuestionnaireField @relation(fields: [fieldId], references: [id])
+
+  @@unique([dossierId, fieldId])
+  @@map("dossier_answers")
+}
+
+model ShareLink {
+  id             String            @id @default(uuid())
+  dossierId      String            @map("dossier_id")
+  recipientEmail String            @map("recipient_email")
+  token          String            @unique
+  status         share_link_status @default(pending)
+  createdAt      DateTime          @default(now()) @map("created_at")
+  revokedAt      DateTime?         @map("revoked_at")
+
+  dossier   Dossier    @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  auditLogs AuditLog[]
+
+  @@index([dossierId])
+  @@index([token])
+  @@map("share_links")
+}
+
+model AuditLog {
+  id          String       @id @default(uuid())
+  dossierId   String?      @map("dossier_id")
+  actorId     String?      @map("actor_id")
+  shareLinkId String?      @map("share_link_id")
+  actionType  audit_action @map("action_type")
+  metadata    Json         @default("{}")
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  dossier   Dossier?   @relation(fields: [dossierId], references: [id], onDelete: SetNull)
+  actor     User?      @relation("AuditLogActor", fields: [actorId], references: [id], onDelete: SetNull)
+  shareLink ShareLink? @relation(fields: [shareLinkId], references: [id], onDelete: SetNull)
+
+  @@index([dossierId])
+  @@index([actorId])
+  @@index([createdAt])
+  @@map("audit_log")
+}

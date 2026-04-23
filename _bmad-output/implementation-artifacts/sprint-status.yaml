@@ -1,5 +1,5 @@
 # generated: 2026-04-14
-# last_updated: 2026-04-22 (story 5-4 review → done)
+# last_updated: 2026-04-23 (story 6-1 review → done)
 # project: confluent
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-14
-last_updated: 2026-04-22
+last_updated: 2026-04-23
 project: confluent
 project_key: NOKEY
 tracking_system: file-system
@@ -86,8 +86,8 @@ development_status:
   epic-5-retrospective: optional
 
   # ── Epic 6: Auth & API Infrastructure ───────────────────────────────────────
-  epic-6: backlog
-  6-1-nestjs-scaffold-prisma-schema: backlog
+  epic-6: in-progress
+  6-1-nestjs-scaffold-prisma-schema: done
   6-2-magic-link-generation-email-send: backlog
   6-3-magic-link-verification-jwt-issuance: backlog
   6-4-financeur-share-token-guard: backlog

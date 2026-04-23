@@ -2,16 +2,16 @@
 // session (architecture.md:164-170) when real auth wiring lands.
 
 import { createContext, use, useState, type ReactNode } from 'react'
-import type { User } from '@confluent/shared'
+import type { CurrentUser } from '@confluent/shared'
 
-export const MOCK_ENTREPRENEUR_USER: User = {
+export const MOCK_ENTREPRENEUR_USER: CurrentUser = {
   id: 'mock-entrepreneur-1',
   name: 'Sophie Moreau',
   email: 'sophie@biosensio.fr',
   role: 'entrepreneur',
 }
 
-export const MOCK_ADMIN_USER: User = {
+export const MOCK_ADMIN_USER: CurrentUser = {
   id: 'mock-admin-1',
   name: 'Claire Martin',
   email: 'claire@frenchtech-cvl.fr',
@@ -20,7 +20,7 @@ export const MOCK_ADMIN_USER: User = {
 
 export const DEV_ROLE_STORAGE_KEY = 'confluent_dev_role'
 
-function resolveCurrentUser(): User {
+function resolveCurrentUser(): CurrentUser {
   if (typeof window === 'undefined') return MOCK_ENTREPRENEUR_USER
   try {
     const url = new URL(window.location.href)
@@ -37,14 +37,14 @@ function resolveCurrentUser(): User {
   }
 }
 
-const CurrentUserContext = createContext<User | null>(null)
+const CurrentUserContext = createContext<CurrentUser | null>(null)
 
 export function CurrentUserProvider({ children }: { children: ReactNode }) {
-  const [user] = useState<User>(resolveCurrentUser)
+  const [user] = useState<CurrentUser>(resolveCurrentUser)
   return <CurrentUserContext value={user}>{children}</CurrentUserContext>
 }
 
-export function useCurrentUser(): User {
+export function useCurrentUser(): CurrentUser {
   const user = use(CurrentUserContext)
   if (user === null) {
     throw new Error('useCurrentUser must be used within a CurrentUserProvider')

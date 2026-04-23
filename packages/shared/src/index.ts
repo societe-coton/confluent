@@ -1,8 +1,5 @@
-export type UserRole = 'entrepreneur' | 'financeur' | 'admin';
-
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: UserRole;
-}
+export * from './schemas/user.schema';
+export * from './schemas/dossier.schema';
+export * from './schemas/share-link.schema';
+export * from './schemas/audit-log.schema';
+export * from './types/current-user';

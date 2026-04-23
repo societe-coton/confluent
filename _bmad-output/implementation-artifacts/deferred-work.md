@@ -2,6 +2,14 @@
 
 Tracking items deliberately postponed during reviews. Each entry records where the deferral came from and why action was pushed out.
 
+## Deferred from: Story 6.1 — NestJS Scaffold & Prisma Schema (2026-04-23)
+
+- **`prisma migrate dev --name init` not executed** — Docker is unavailable in the current dev environment, so the live migration step from AC4 is deferred. The schema is validated (`prisma validate` green) and the client is generated. First developer to run `docker compose up -d` locally runs `pnpm --filter @confluent/api exec prisma migrate dev --name init` and commits the generated `apps/api/prisma/migrations/init/migration.sql`. Story 6.2 (magic-link token writes) is the first story that requires a live DB, so at latest it lands there.
+- **Prisma 5.22 → 7.x upgrade** — Architecture targets 7.2.0 but 7.x is not yet cleanly compatible with NestJS 11 + our Jest setup (runtime produced "Update available" nag during install). Upgrade when Prisma 7 has first-class Nest 11 guidance. Schema stays forward-compatible.
+- **E2E boots `AppModule` with a stubbed `PrismaService`** — [apps/api/test/app.e2e-spec.ts](../../apps/api/test/app.e2e-spec.ts) overrides `PrismaService` with `{ onModuleInit: noop, onModuleDestroy: noop }` because no Postgres is running in dev. When CI acquires a real test DB (Epic 10), drop the override and exercise real `$connect`.
+- **Zod version alignment** — architecture.md:150 pins `zod 3.24.0`, but Story 3.5 already introduced Zod 4 on the frontend. 6.1 unifies everything on `zod ^4.3.6` across `apps/api`, `apps/web`, and `packages/shared` — the cleaner choice vs. splitting frontend/backend across majors. Architecture doc should be updated to reflect this; tracked as a doc-drift item.
+- **Config values not yet propagated via `ConfigService`** — `main.ts` still reads `process.env.PORT` directly for the bootstrap log. Migrate to `app.get(ConfigService).get('PORT')` when the first feature module consumes config (Story 6.2: SMTP + FRONTEND_URL).
+
 ## Deferred from: code review of 5-2-admin-all-dossiers-list (2026-04-22)
 
 - **Role switch mid-session leaves `user` state stale** [[apps/web/src/features/current-user/context.tsx](../../apps/web/src/features/current-user/context.tsx)] — `CurrentUserProvider` reads the role once via `useState` initializer. An admin who toggles role via `?as=entrepreneur` mutates sessionStorage and rewrites the URL, but the in-memory `user` stays `admin` until full reload, so the `user.role !== 'admin' → Navigate` gate does not fire and admin surfaces continue rendering (including `entrepreneurEmail` PII). Pre-existing since Story 1.3; not introduced by 5.2. Epic 6.3 (magic-link auth + JWT + real guard infrastructure) replaces the dev-role impersonation mechanism wholesale. No 5.2 action.

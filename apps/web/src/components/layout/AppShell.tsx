@@ -4,7 +4,7 @@ import { useCurrentUser } from '@/features/current-user/context'
 import { Breadcrumbs } from './Breadcrumbs'
 import { NavItem } from './NavItem'
 import { ADMIN_NAV_ITEMS, NAV_ITEMS, type NavItemSpec } from './nav-items'
-import type { User } from '@confluent/shared'
+import type { CurrentUser } from '@confluent/shared'
 
 function SkipLink() {
   return (
@@ -17,7 +17,7 @@ function SkipLink() {
   )
 }
 
-function DesktopSidebar({ user, navItems }: { user: User; navItems: NavItemSpec[] }) {
+function DesktopSidebar({ user, navItems }: { user: CurrentUser; navItems: NavItemSpec[] }) {
   return (
     <aside className="hidden w-60 shrink-0 flex-col bg-sidebar lg:flex">
       <div className="px-4 py-6 text-lg font-heading font-medium text-sidebar-foreground">
@@ -55,7 +55,7 @@ function DesktopSidebar({ user, navItems }: { user: User; navItems: NavItemSpec[
   )
 }
 
-function TabletRail({ user, navItems }: { user: User; navItems: NavItemSpec[] }) {
+function TabletRail({ user, navItems }: { user: CurrentUser; navItems: NavItemSpec[] }) {
   const initial = (user.name.charAt(0) || '?').toUpperCase()
   return (
     <aside className="hidden w-[60px] shrink-0 flex-col items-center bg-sidebar md:flex lg:hidden">
