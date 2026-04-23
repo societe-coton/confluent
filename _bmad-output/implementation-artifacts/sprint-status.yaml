@@ -91,7 +91,7 @@ development_status:
   6-2-magic-link-generation-email-send: done
   6-3-magic-link-verification-jwt-issuance: done
   6-4-financeur-share-token-guard: done
-  6-5-rate-limiting-security-hardening: backlog
+  6-5-rate-limiting-security-hardening: done
   6-6-frontend-magic-link-auth-wiring: backlog
   epic-6-retrospective: optional
 

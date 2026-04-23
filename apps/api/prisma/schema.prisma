@@ -49,6 +49,8 @@ enum audit_action {
   questionnaire_version_published
   user_deactivated
   user_reactivated
+  rate_limit_exceeded
+  share_link_access_denied
 
   @@map("audit_action")
 }

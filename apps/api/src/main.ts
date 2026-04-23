@@ -1,16 +1,20 @@
 import { Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { NestFactory } from '@nestjs/core'
+import { NestExpressApplication } from '@nestjs/platform-express'
 import { ZodValidationPipe } from 'nestjs-zod'
 import cookieParser from 'cookie-parser'
+import helmet from 'helmet'
 import { AppModule } from './app.module'
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
 import type { AppConfig } from './config/config.schema'
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule)
+  const app = await NestFactory.create<NestExpressApplication>(AppModule)
   const config = app.get(ConfigService<AppConfig, true>)
 
+  app.set('trust proxy', 1)
+  app.use(helmet())
   app.use(cookieParser())
   app.setGlobalPrefix('v1', { exclude: ['/'] })
   app.useGlobalPipes(new ZodValidationPipe())

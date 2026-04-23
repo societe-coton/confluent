@@ -76,14 +76,19 @@ describe('ShareLinksController (e2e)', () => {
     )
   })
 
-  it('GET /v1/shares/:token — unknown token: 403 ACCESS_DENIED', async () => {
+  it('GET /v1/shares/:token — unknown token: 403 + deny audit', async () => {
     shareFindUnique.mockResolvedValue(null)
     const res = await request(app.getHttpServer()).get('/v1/shares/unknown').expect(403)
     expect(res.body.error.code).toBe('FORBIDDEN')
-    expect(auditRecord).not.toHaveBeenCalled()
+    expect(auditRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actionType: 'share_link_access_denied',
+        metadata: expect.objectContaining({ reason: 'not_found' }),
+      }),
+    )
   })
 
-  it('GET /v1/shares/:token — revoked: 403', async () => {
+  it('GET /v1/shares/:token — revoked: 403 + deny audit', async () => {
     shareFindUnique.mockResolvedValue({
       id: 'sl-2',
       token: 'rev',
@@ -92,6 +97,11 @@ describe('ShareLinksController (e2e)', () => {
       recipientEmail: 'bob@invest.fr',
     })
     await request(app.getHttpServer()).get('/v1/shares/rev').expect(403)
-    expect(auditRecord).not.toHaveBeenCalled()
+    expect(auditRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actionType: 'share_link_access_denied',
+        metadata: expect.objectContaining({ reason: 'revoked' }),
+      }),
+    )
   })
 })

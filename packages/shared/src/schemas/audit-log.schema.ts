@@ -12,6 +12,8 @@ export const auditActionSchema = z.enum([
   'questionnaire_version_published',
   'user_deactivated',
   'user_reactivated',
+  'rate_limit_exceeded',
+  'share_link_access_denied',
 ]);
 
 export const auditLogSchema = z.object({

@@ -1,5 +1,6 @@
 import { Body, Controller, Get, HttpCode, Post, Query, Req, Res } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import { Throttle } from '@nestjs/throttler'
 import type { Request, Response } from 'express'
 import { magicLinkRequestSchema, type MagicLinkRequest } from '@confluent/shared'
 import { createZodDto } from 'nestjs-zod'
@@ -20,6 +21,7 @@ export class AuthController {
   ) {}
 
   @Public()
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @Post('magic-link')
   @HttpCode(200)
   async requestMagicLink(@Body() body: MagicLinkRequestDto): Promise<{ message: string }> {
@@ -29,6 +31,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @Get('verify')
   @HttpCode(200)
   async verifyMagicLink(
