@@ -109,7 +109,7 @@ development_status:
   epic-8: in-progress
   8-1-share-link-generation-email-invitation-fr16-fr40: done
   8-2-share-link-listing-revocation-fr19-fr20: done
-  8-3-financeur-session-tracking-analytics-fr23: backlog
+  8-3-financeur-session-tracking-analytics-fr23: done
   8-4-audit-log-admin-actions-access-history-fr24-fr26: backlog
   8-5-frontend-wiring-sharing-analytics: backlog
   epic-8-retrospective: optional
