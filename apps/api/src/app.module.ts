@@ -13,6 +13,7 @@ import { DossiersModule } from './modules/dossiers/dossiers.module'
 import { AnswersModule } from './modules/answers/answers.module'
 import { QuestionnairesModule } from './modules/questionnaires/questionnaires.module'
 import { DocumentsModule } from './modules/documents/documents.module'
+import { AnalyticsModule } from './modules/analytics/analytics.module'
 import { RateLimitAuditInterceptor } from './common/interceptors/rate-limit-audit.interceptor'
 
 @Module({
@@ -33,6 +34,7 @@ import { RateLimitAuditInterceptor } from './common/interceptors/rate-limit-audi
     DossiersModule,
     AnswersModule,
     DocumentsModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [
