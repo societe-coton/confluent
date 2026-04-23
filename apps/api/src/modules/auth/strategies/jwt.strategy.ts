@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, UnauthorizedException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { PassportStrategy } from '@nestjs/passport'
 import { ExtractJwt, Strategy } from 'passport-jwt'
 import type { AppConfig } from '../../../config/config.schema'
+import { PrismaService } from '../../../prisma/prisma.service'
 
 export interface JwtPayload {
   sub: string
@@ -18,7 +19,10 @@ export interface AuthenticatedUser {
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(config: ConfigService<AppConfig, true>) {
+  constructor(
+    config: ConfigService<AppConfig, true>,
+    private readonly prisma: PrismaService,
+  ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
@@ -26,7 +30,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     })
   }
 
-  validate(payload: JwtPayload): AuthenticatedUser {
+  async validate(payload: JwtPayload): Promise<AuthenticatedUser> {
+    const user = await this.prisma.user.findUnique({ where: { id: payload.sub } })
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException({
+        code: 'INVALID_TOKEN',
+        message: 'Token expired or invalid.',
+      })
+    }
     return { id: payload.sub, email: payload.email, role: payload.role }
   }
 }

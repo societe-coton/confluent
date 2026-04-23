@@ -40,7 +40,11 @@ describe('DossiersController (e2e)', () => {
       .useValue({
         onModuleInit: async () => {},
         onModuleDestroy: async () => {},
-        user: { findUnique: jest.fn() },
+        user: {
+          findUnique: jest
+            .fn()
+            .mockResolvedValue({ id: 'user-1', email: 'sophie@biosensio.fr', isActive: true }),
+        },
         magicLinkToken: { create: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
         shareLink: { findUnique: jest.fn() },
         dossier: {
