@@ -18,7 +18,10 @@ describe('AppController (e2e)', () => {
         onModuleInit: async () => {},
         onModuleDestroy: async () => {},
         user: { findUnique: jest.fn() },
-        magicLinkToken: { create: jest.fn() },
+        magicLinkToken: { create: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
+        shareLink: { findUnique: jest.fn() },
+        dossier: { findUnique: jest.fn() },
+        auditLog: { create: jest.fn() },
       })
       .overrideProvider(EMAIL_TRANSPORT)
       .useValue({ sendMail: jest.fn() })

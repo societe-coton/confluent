@@ -4,6 +4,8 @@ import { AppController } from './app.controller'
 import { validateConfig } from './config/config.schema'
 import { PrismaModule } from './prisma/prisma.module'
 import { AuthModule } from './modules/auth/auth.module'
+import { AuditModule } from './modules/audit/audit.module'
+import { ShareLinksModule } from './modules/share-links/share-links.module'
 
 @Module({
   imports: [
@@ -13,7 +15,9 @@ import { AuthModule } from './modules/auth/auth.module'
       envFilePath: ['.env.local', '.env'],
     }),
     PrismaModule,
+    AuditModule,
     AuthModule,
+    ShareLinksModule,
   ],
   controllers: [AppController],
   providers: [],
