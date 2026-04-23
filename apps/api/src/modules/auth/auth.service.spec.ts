@@ -1,25 +1,27 @@
 import { Test } from '@nestjs/testing'
 import { ConfigService } from '@nestjs/config'
+import { JwtService } from '@nestjs/jwt'
+import { UnauthorizedException } from '@nestjs/common'
 import { AuthService } from './auth.service'
 import { PrismaService } from '../../prisma/prisma.service'
 import { EMAIL_TRANSPORT, type EmailTransport } from './email/email-transport'
 
-type FindUnique = jest.Mock<Promise<{ id: string; email: string } | null>, [unknown]>
-type Create = jest.Mock<Promise<unknown>, [unknown]>
-
-interface PrismaMock {
-  user: { findUnique: FindUnique }
-  magicLinkToken: { create: Create }
-}
-
 function buildModule(overrides?: {
-  findUnique?: FindUnique
-  sendMail?: jest.Mock<Promise<void>, [unknown]>
+  findUnique?: jest.Mock
+  tokenFindUnique?: jest.Mock
+  tokenUpdate?: jest.Mock
+  sendMail?: jest.Mock
+  signAsync?: jest.Mock
+  verifyAsync?: jest.Mock
   configValues?: Record<string, string>
 }) {
-  const prismaMock: PrismaMock = {
+  const prismaMock = {
     user: { findUnique: overrides?.findUnique ?? jest.fn().mockResolvedValue(null) },
-    magicLinkToken: { create: jest.fn().mockResolvedValue({}) },
+    magicLinkToken: {
+      create: jest.fn().mockResolvedValue({}),
+      findUnique: overrides?.tokenFindUnique ?? jest.fn().mockResolvedValue(null),
+      update: overrides?.tokenUpdate ?? jest.fn().mockResolvedValue({}),
+    },
   }
   const emailMock: EmailTransport = {
     sendMail: overrides?.sendMail ?? jest.fn().mockResolvedValue(undefined),
@@ -27,10 +29,17 @@ function buildModule(overrides?: {
   const values: Record<string, string> = {
     FRONTEND_URL: 'http://localhost:5173',
     SMTP_FROM: 'noreply@confluent.local',
+    JWT_SECRET: 'access-secret-key',
+    JWT_REFRESH_SECRET: 'refresh-secret-key',
+    NODE_ENV: 'test',
     ...(overrides?.configValues ?? {}),
   }
   const configMock = { get: (k: string) => values[k] }
-  return { prismaMock, emailMock, configMock }
+  const jwtMock = {
+    signAsync: overrides?.signAsync ?? jest.fn().mockResolvedValue('signed.jwt.token'),
+    verifyAsync: overrides?.verifyAsync ?? jest.fn(),
+  }
+  return { prismaMock, emailMock, configMock, jwtMock }
 }
 
 async function instantiate(mocks: ReturnType<typeof buildModule>): Promise<AuthService> {
@@ -39,6 +48,7 @@ async function instantiate(mocks: ReturnType<typeof buildModule>): Promise<AuthS
       AuthService,
       { provide: PrismaService, useValue: mocks.prismaMock },
       { provide: ConfigService, useValue: mocks.configMock },
+      { provide: JwtService, useValue: mocks.jwtMock },
       { provide: EMAIL_TRANSPORT, useValue: mocks.emailMock },
     ],
   }).compile()
@@ -114,5 +124,109 @@ describe('AuthService.requestMagicLink', () => {
     expect(mocks.prismaMock.user.findUnique).toHaveBeenCalledWith({
       where: { email: 'foo@bar.com' },
     })
+  })
+})
+
+describe('AuthService.verifyMagicLink', () => {
+  const validTokenRow = {
+    id: 'mlt-1',
+    expiresAt: new Date(Date.now() + 60_000),
+    consumedAt: null,
+    user: { id: 'user-1', email: 'sophie@biosensio.fr', role: 'entrepreneur' as const },
+  }
+
+  it('consumes the token and returns an issued session for a valid token', async () => {
+    const mocks = buildModule({
+      tokenFindUnique: jest.fn().mockResolvedValue(validTokenRow),
+    })
+    const service = await instantiate(mocks)
+
+    const session = await service.verifyMagicLink('a-uuid')
+
+    expect(mocks.prismaMock.magicLinkToken.update).toHaveBeenCalledWith({
+      where: { id: 'mlt-1' },
+      data: { consumedAt: expect.any(Date) },
+    })
+    expect(mocks.jwtMock.signAsync).toHaveBeenCalledTimes(2)
+    expect(session.accessToken).toBe('signed.jwt.token')
+    expect(session.refreshToken).toBe('signed.jwt.token')
+    expect(session.user).toEqual({
+      id: 'user-1',
+      email: 'sophie@biosensio.fr',
+      role: 'entrepreneur',
+    })
+  })
+
+  it('rejects unknown tokens with UnauthorizedException', async () => {
+    const mocks = buildModule({ tokenFindUnique: jest.fn().mockResolvedValue(null) })
+    const service = await instantiate(mocks)
+    await expect(service.verifyMagicLink('nope')).rejects.toBeInstanceOf(UnauthorizedException)
+  })
+
+  it('rejects expired tokens', async () => {
+    const mocks = buildModule({
+      tokenFindUnique: jest.fn().mockResolvedValue({
+        ...validTokenRow,
+        expiresAt: new Date(Date.now() - 60_000),
+      }),
+    })
+    const service = await instantiate(mocks)
+    await expect(service.verifyMagicLink('expired')).rejects.toBeInstanceOf(UnauthorizedException)
+  })
+
+  it('rejects already-consumed tokens', async () => {
+    const mocks = buildModule({
+      tokenFindUnique: jest.fn().mockResolvedValue({
+        ...validTokenRow,
+        consumedAt: new Date(),
+      }),
+    })
+    const service = await instantiate(mocks)
+    await expect(service.verifyMagicLink('used')).rejects.toBeInstanceOf(UnauthorizedException)
+  })
+})
+
+describe('AuthService.refreshSession', () => {
+  it('rejects a missing cookie', async () => {
+    const mocks = buildModule()
+    const service = await instantiate(mocks)
+    await expect(service.refreshSession(undefined)).rejects.toBeInstanceOf(UnauthorizedException)
+  })
+
+  it('rejects an invalid signature', async () => {
+    const mocks = buildModule({
+      verifyAsync: jest.fn().mockRejectedValue(new Error('bad signature')),
+    })
+    const service = await instantiate(mocks)
+    await expect(service.refreshSession('bad.refresh')).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    )
+  })
+
+  it('rejects when the underlying user is missing or inactive', async () => {
+    const mocks = buildModule({
+      verifyAsync: jest.fn().mockResolvedValue({ sub: 'user-1', tokenVersion: 0 }),
+      findUnique: jest
+        .fn()
+        .mockResolvedValue({ id: 'user-1', isActive: false, email: 'x', role: 'entrepreneur' }),
+    })
+    const service = await instantiate(mocks)
+    await expect(service.refreshSession('ok.refresh')).rejects.toBeInstanceOf(UnauthorizedException)
+  })
+
+  it('issues a fresh session pair on a valid refresh', async () => {
+    const mocks = buildModule({
+      verifyAsync: jest.fn().mockResolvedValue({ sub: 'user-1', tokenVersion: 0 }),
+      findUnique: jest.fn().mockResolvedValue({
+        id: 'user-1',
+        isActive: true,
+        email: 'sophie@biosensio.fr',
+        role: 'entrepreneur',
+      }),
+    })
+    const service = await instantiate(mocks)
+    const session = await service.refreshSession('good.refresh')
+    expect(session.user.id).toBe('user-1')
+    expect(mocks.jwtMock.signAsync).toHaveBeenCalledTimes(2)
   })
 })
