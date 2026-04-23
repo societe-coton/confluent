@@ -119,6 +119,9 @@ model Dossier {
   name                   String
   slug                   String   @unique
   questionnaireVersionId String   @map("questionnaire_version_id")
+  sector                 String?
+  maturityStage          String?  @map("maturity_stage")
+  submittedAt            DateTime? @map("submitted_at")
   createdAt              DateTime @default(now()) @map("created_at")
   updatedAt              DateTime @updatedAt @map("updated_at")
 
@@ -126,11 +129,29 @@ model Dossier {
   questionnaireVersion QuestionnaireVersion @relation(fields: [questionnaireVersionId], references: [id])
   answers              DossierAnswer[]
   shareLinks           ShareLink[]
+  documents            Document[]
   auditLogs            AuditLog[]
 
   @@index([userId])
   @@index([slug])
   @@map("dossiers")
+}
+
+model Document {
+  id         String   @id @default(uuid())
+  dossierId  String   @map("dossier_id")
+  filename   String
+  mimetype   String
+  storageKey String   @map("storage_key")
+  size       Int
+  version    Int      @default(1)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  dossier Dossier @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+
+  @@index([dossierId])
+  @@index([dossierId, filename, version])
+  @@map("documents")
 }
 
 model DossierAnswer {
