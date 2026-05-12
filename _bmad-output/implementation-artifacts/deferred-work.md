@@ -2,6 +2,31 @@
 
 Tracking items deliberately postponed during reviews. Each entry records where the deferral came from and why action was pushed out.
 
+## Deferred from: Epic 11 — V1 Polish (2026-05-12)
+
+**Newly deferred:**
+
+- **Story 11.1 — `GET /shares/:token` ne renvoie pas `answers` ni `documents`** [[apps/api/src/modules/share-links/share-links.service.ts:13](../../apps/api/src/modules/share-links/share-links.service.ts#L13)] — `FinanceurShareResponse` se limite à `{ dossier: {id,name,slug}, share: {recipientEmail,status} }`. La vue `/share/:token/dossier` côté web affiche donc un placeholder + un TODO en commentaire. Le financeur peut être contacté via l'email d'invitation mais ne voit pas le contenu du dossier. Fix path : étendre l'endpoint pour exposer `answers + documents` derrière le `ShareLinkGuard` (le guard valide déjà le token, on peut s'appuyer dessus). À planifier dans une nouvelle story (extension Story 8.3 ou ticket dédié "financeur read-only payload").
+- **Story 11.1 — Résolution slug→id côté admin** [[apps/web/src/routes/admin/dossiers/[slug].tsx](../../apps/web/src/routes/admin/dossiers/%5Bslug%5D.tsx)] — `/admin/dossiers/:slug` charge la 1ʳᵉ page `listAdminDossiers(1, 100)` puis fait un `.find(slug)` côté client. OK pour V1 (≤100 dossiers visibles depuis la liste), casse au-delà. Fix path : `GET /v1/admin/dossiers/by-slug/:slug` côté API.
+- **Story 11.1 — Impersonation dev `?as=admin|entrepreneur`** [[apps/web/src/features/current-user/context.tsx](../../apps/web/src/features/current-user/context.tsx)] — conservée comme identité offline-friendly (cf. plan), mais sans données mockées sous-jacentes elle ne sert qu'à afficher l'AppShell. Tous les appels API échouent (pas de JWT). Le bouton "Se déconnecter" en sidebar reste la voie propre. À supprimer le jour où on a un mode "demo data seed" propre.
+- **Story 11.4 — VML pour rounded corners sur Outlook Windows** [[apps/api/src/modules/auth/email/templates/magic-link.html](../../apps/api/src/modules/auth/email/templates/magic-link.html)] — Le bouton CTA a `border-radius:6px` ignoré sur Outlook 2007-2019 (Windows) → carré accepté comme dégradation gracieuse. Si la marque exige rounded sur tous les clients, ajouter un bloc `<!--[if mso]><v:roundrect>…<![endif]-->` documenté dans `templates/README.md`.
+- **Story 11.4 — Dark-mode email forcé en light only** — `<meta color-scheme="light only">` désactive le dark auto. Pas de variante dark designée en V1. À traiter quand le besoin remontera (Apple Mail iOS / Outlook macOS bénéficieraient d'une vraie variante).
+- **Story 11.4 — Email i18n EN non livré** — Le scaffolding i18n est en place (single-source HTML + JSON par locale), mais seul `i18n/fr.json` est livré. Pour ajouter EN : copier `fr.json` → `en.json`, traduire, élargir le type `Locale`. Aucun changement HTML nécessaire.
+- **Story 11.4 — Templates Brevo côté dashboard** — Nécessite l'API Brevo (pas le SMTP). Si un jour on veut séparer l'édition du contenu du déploiement (édition par non-devs), créer un `BrevoApiTransport` implémentant `EmailTransport` — les services consommateurs ne bougent pas grâce à la séparation typée. Aucun travail urgent : les templates HTML statiques sont édités en repo + reviewés en PR, ce qui est OK pour l'équipe actuelle.
+- **Story 11.4 — Litmus / Email on Acid dans CI** — Les tests cross-client manuels (Gmail web + Apple Mail iOS + Outlook web) sont documentés dans `templates/README.md` mais non automatisés. À automatiser si on bouge des conventions structurelles (table layout, bouton bulletproof, doctype) ou si l'équipe grandit.
+- **Story 11.5 — Smoke prod Brevo non exécuté** — Coolify doit être configuré avec les vraies creds Brevo (`SMTP_HOST=smtp-relay.brevo.com`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`) et un sender vérifié dans Brevo > Senders avant le premier envoi prod. À faire lors du prochain déploiement staging.
+- **Story 11.6 — Auto-reload preview server** — polling 2 s simple plutôt que WebSocket/SSE. Suffisant pour un outil dev. À upgrader avec `chokidar` + EventSource si l'équipe se met à itérer beaucoup sur les templates.
+
+**Resolved by Epic 11** (items previously deferred that this epic addresses):
+
+- **6.1 deferral "Config values not yet propagated via `ConfigService`"** — Partiellement résolu : la chaîne email (`NodemailerTransport` + `AuthService.requestMagicLink` + `ShareLinksService.create`) passe maintenant par `ConfigService` pour tous les paramètres. Le `main.ts` lit toujours `PORT` via `process.env` — laissé tel quel (pas de changement de comportement à risque pour la story 11).
+- **3-5 deferral "`AccessEntry` domain type colocated with mock fixture"** — Résolu : `AccessEntry` extrait dans [apps/web/src/features/shares/access-entry.ts](../../apps/web/src/features/shares/access-entry.ts). Plus aucune importation depuis `data/mock-*` (lesquels sont supprimés).
+- **3-6 deferral "`handleConfirmRevoke` keys by `email` — duplicate-email rows revoked together"** — Résolu : la révocation est désormais clé par `ShareLink.id` (cf. `buildAccessEntries` qui propage `id` jusqu'à `AccessEntry`). Plus de collision possible sur emails dupliqués.
+- **3-6 deferral "`revokedBy` hard-coded via `useCurrentUser()` mock"** — Résolu : la révocation passe maintenant par `revokeShare(dossierId, linkId)` ; le serveur enregistre l'audit `share_link_revoked` avec l'`actorId` réel issu du JWT. Pas de hardcoded name côté web.
+- **5-2 deferral "Role switch mid-session leaves `user` state stale"** — Résolu de fait : avec la suppression des mocks (Story 11.1), l'impersonation `?as=…` ne fournit plus de données. Le risque "admin voit PII après bascule de rôle" disparaît.
+
+---
+
 ## Deferred from: Story 6.1 — NestJS Scaffold & Prisma Schema (2026-04-23)
 
 - **`prisma migrate dev --name init` not executed** — Docker is unavailable in the current dev environment, so the live migration step from AC4 is deferred. The schema is validated (`prisma validate` green) and the client is generated. First developer to run `docker compose up -d` locally runs `pnpm --filter @confluent/api exec prisma migrate dev --name init` and commits the generated `apps/api/prisma/migrations/init/migration.sql`. Story 6.2 (magic-link token writes) is the first story that requires a live DB, so at latest it lands there.

@@ -1,5 +1,5 @@
 # generated: 2026-04-14
-# last_updated: 2026-04-23 (story 6-2 review → done)
+# last_updated: 2026-05-12 (epic-11 V1 polish: full web wiring + user state separation + email pipeline → done)
 # project: confluent
 # project_key: NOKEY
 # tracking_system: file-system
@@ -131,3 +131,14 @@ development_status:
   10-4-database-backups-restore-procedure-nfr15-nfr16: backlog
   10-5-self-hosting-documentation: backlog
   epic-10-retrospective: optional
+
+  # ── Epic 11: V1 Polish — Full Web Wiring, User State, Email Pipeline ────────
+  epic-11: done
+  11-1-web-replace-mocks-full-api-wiring: done
+  11-2-user-state-separation-email-verified-at: done
+  11-3-share-invite-auto-creates-user: done
+  11-4-email-templates-html-i18n: done
+  11-5-brevo-smtp-relay-integration: done
+  11-6-email-preview-and-test-tooling: done
+  11-7-auth-page-invite-only-mention: done
+  epic-11-retrospective: optional

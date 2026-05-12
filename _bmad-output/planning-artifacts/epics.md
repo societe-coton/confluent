@@ -239,6 +239,12 @@ The platform is deployable: multi-stage Docker build, GitHub Actions CI/CD pipel
 **NFRs:** NFR12, NFR13, NFR15, NFR16, NFR18, NFR19
 **Arch:** GitHub Actions workflow, Docker multi-stage build, ghcr.io push, SSH deploy, Nginx config, backup procedure docs
 
+### Epic 11: V1 Polish — Full Web Wiring, User State, Email Pipeline
+Closes the deferred scope of Epics 7-8 (web routes still rendering mocks) and brings the user model + email pipeline to production quality: `User.emailVerifiedAt` separated from `isActive` (state-of-the-art identity model), auto-creation of `User` rows on share invite (financeurs invited by entrepreneurs can now self-login via magic-link), single-source HTML email templates with JSON-based i18n (compatible Outlook/Gmail/Apple Mail), Brevo SMTP relay for production, and dev tooling to preview/test emails. Provider-agnostic by design.
+**FRs covered (gaps closed):** FR1–FR3, FR9, FR10, FR11, FR12, FR16–FR20, FR22, FR23, FR24, FR26, FR27, FR28, FR32–FR35 (frontend wiring) ; FR17 (email pipeline)
+**NFRs:** NFR17 (Brevo abstraction)
+**Arch:** `User.emailVerifiedAt` + `User.locale` Prisma migration, `EmailTransport` interface typée (`sendMagicLink`/`sendShareInvite`), HTML templates statiques ouvrables dans un navigateur, JSON i18n single-source, scripts `email:preview` + `email:test`
+
 <!-- Stories will be appended below by epic -->
 
 ---
@@ -1975,6 +1981,250 @@ So that I can deploy and maintain the platform on my own server without needing 
 **Given** the self-hosting guide references GitHub Actions secrets,
 **When** a developer reads the CD section,
 **Then** the exact secret names (`DEPLOY_SSH_KEY`, `DEPLOY_HOST`, `DEPLOY_USER`, `GHCR_TOKEN`) and how to create them in GitHub repository settings are documented.
+
+---
+
+## Epic 11: V1 Polish — Full Web Wiring, User State, Email Pipeline
+
+Closes the explicitly-deferred web-wiring scope of Stories 7.6 and 8.5 (those landed only `features/*/api.ts` helpers; mocks remained as runtime fallbacks), then brings the user identity model and email pipeline to production quality. Two motivating findings drove this epic:
+
+1. **Latent bug post-Story 9.3** — `AdminUsersService.invite` created users with `isActive: false`, but `JwtStrategy.validate` rejected `!isActive`. So a freshly-invited user clicked their magic-link, received an access token, and the first authenticated request 401'd. The fix is structural: separate `emailVerifiedAt` (never verified) from `isActive` (deactivated by admin).
+2. **Latent UX dead-end on share invite** — `POST /v1/dossiers/:id/shares` stored `recipientEmail` as a raw string without ever writing `users`. A financeur invited by a share couldn't ever request a magic-link (anti-enumeration `requestMagicLink` returns silently for unknown emails). The fix is to auto-create the user row at share creation time, with `role: 'financeur'`, `isActive: true`, `emailVerifiedAt: null`.
+
+The epic also extracts the inline email HTML (Stories 6.2 + 8.1) into a real templating layer with i18n single-source (1 HTML + N JSON locales), aligns the production transport on Brevo's SMTP relay (NFR17), and ships dev tooling for cross-client validation.
+
+### Story 11.1: Web — Replace All Mocks with Full API Wiring
+
+As an end user (entrepreneur / admin / financeur),
+I want every page of the web app to consume real backend data,
+So that the app stops showing fake fixtures and reflects the real state of my account, dossiers, and shares.
+
+**Acceptance Criteria:**
+
+**Given** the dashboard routes (`/dashboard`, `/dashboard/tableau-de-bord`),
+**When** the page renders,
+**Then** dossier listings and counters come from `GET /v1/dossiers` (no `MOCK_DOSSIERS`).
+
+**Given** the dossier creation wizard (`/dashboard/dossiers/nouveau` → `/questionnaire` → `/recapitulatif`),
+**When** the user fills it in,
+**Then** the dossier is **created server-side at step 1** (`POST /v1/dossiers`), the questionnaire structure is loaded from `GET /v1/questionnaires/active`, answers are persisted via `PUT /v1/dossiers/:id/answers` with debounced autosave (~800ms), and submission triggers `POST /v1/dossiers/:id/submit`. No `localStorage` draft state.
+
+**Given** the entrepreneur dossier view (`/dashboard/dossiers/view/:slug`),
+**When** the page renders,
+**Then** it parallel-loads `getDossier`, `listAnswers`, `listDocuments`, `listShares`, `getAnalytics`, `getDossierAuditLog` and renders all sections from API data.
+
+**Given** the SharePanel,
+**When** the user invites a new recipient or revokes access,
+**Then** `POST` / `DELETE /v1/dossiers/:id/shares` are called and the list is refetched on success.
+
+**Given** the public share access route (`/share/:token`),
+**When** the token resolves via `GET /shares/:token`,
+**Then** the user is redirected directly to `/share/:token/dossier` (no email-gate screen — the UUID token is sufficient, aligned with `ShareLinkGuard`).
+
+**Given** all admin routes (`/admin`, `/admin/dossiers`, `/admin/dossiers/:slug`, `/admin/questionnaire`, `/admin/utilisateurs`),
+**When** rendered,
+**Then** every read and mutation goes through real `/v1/admin/*` endpoints (pagination, inline answer editing, share revocation, audit log display, questionnaire field patching, user invite/deactivate/reactivate).
+
+**Given** the AppShell sidebar,
+**When** the user clicks "Se déconnecter",
+**Then** `POST /v1/auth/logout` is called and the auth store is cleared.
+
+**Given** `@confluent/shared`,
+**When** the web imports DTOs,
+**Then** `questionnaire`, `document`, `analytics` schemas and types are exported (plus `IssuedSession`, `FinanceurShareResponse`, `AdminDossierList`, `Dossier.sector`/`maturityStage`/`submittedAt`).
+
+**Given** all mock fixtures,
+**When** the project is built,
+**Then** `apps/web/src/data/mock-*.ts` files are deleted (`mock-dossiers`, `mock-admin-dossiers`, `mock-admin-pipeline`, `mock-users`, `mock-analytics`, `mock-dossier`, `mock-questionnaire-builder`, `mock-tokens`). Only `data/questionnaire.ts` remains, stripped to type definitions (`Question`, `Section`, `QuestionMeta`).
+
+**Given** `pnpm -r typecheck` + `pnpm --filter @confluent/web build`,
+**When** run,
+**Then** both are green.
+
+---
+
+### Story 11.2: User State Separation — `emailVerifiedAt` + `locale`
+
+As a platform operator,
+I want `User.isActive` to mean only "admin toggle" and a separate `emailVerifiedAt` column to track first verification,
+So that the semantics of user state are unambiguous and invited users can log in via magic-link without the current latent bug.
+
+**Acceptance Criteria:**
+
+**Given** the Prisma schema,
+**When** the migration `add_user_email_verified_at_and_locale` is applied,
+**Then** `User` has two new columns: `emailVerifiedAt DateTime?` and `locale String @default("fr")`. Backfill applied: `UPDATE users SET email_verified_at = NOW() WHERE is_active = TRUE`.
+
+**Given** `JwtStrategy.validate` and `AuthService.refreshSession`,
+**When** a request is authenticated,
+**Then** login is granted **iff `isActive === true AND emailVerifiedAt !== null`** (else 401 `INVALID_TOKEN`, opaque to UX).
+
+**Given** `AuthService.verifyMagicLink`,
+**When** the token is consumed,
+**Then** the user's `emailVerifiedAt` is set to `now()` if previously null (idempotent — no-op if already set), and an audit `magic_link_consumed` row is written with `metadata: { tokenId }`.
+
+**Given** `AdminUsersService.invite`,
+**When** a user is invited (new or never-verified existing),
+**Then** the user row is created/updated with `isActive: true, emailVerifiedAt: null` (role = invited role). The 409 `USER_ALREADY_ACTIVE` rejection now applies only to `existing.isActive && existing.emailVerifiedAt !== null`.
+
+**Given** unit + e2e tests,
+**When** run,
+**Then** cases covered: emailVerifiedAt promotion from null on first verify, no-op on subsequent verifies, audit recorded, refresh rejects emailVerifiedAt=null. 69/69 unit + 18/18 e2e green.
+
+---
+
+### Story 11.3: Share Invite Auto-Creates User Row
+
+As an entrepreneur sharing my dossier,
+I want the recipient to be registered on the platform automatically,
+So that they can later authenticate via magic-link and access their full account, not just the share token.
+
+**Acceptance Criteria:**
+
+**Given** `POST /v1/dossiers/:id/shares` with a recipient email unknown to the platform,
+**When** the share is created,
+**Then** a `User` row is created with `{ email, role: 'financeur', isActive: true, emailVerifiedAt: null }`. The recipient email is normalized (`.trim().toLowerCase()`) before lookup and creation.
+
+**Given** the same call with a recipient that already exists,
+**When** the share is created,
+**Then** **no mutation** is performed on the existing row (state preserved, including role and `isActive`).
+
+**Given** the audit row `share_link_created`,
+**When** inspected,
+**Then** `metadata` contains `recipientUserId` and `createdNewUser: boolean`.
+
+**Given** the email layer,
+**When** the share is created,
+**Then** exactly one email is sent (`sendShareInvite` with the share URL) — no second magic-link email. The recipient consults the dossier via the share URL without login; if they want to authenticate, they visit `/auth` and the magic-link works because the User row now exists.
+
+**Given** unit tests,
+**When** run,
+**Then** cases covered: unknown recipient → user created with the right shape ; known recipient → no upsert mutation ; audit metadata correct.
+
+---
+
+### Story 11.4: Email Templates — HTML Statique + i18n Single-Source
+
+As a developer or designer,
+I want all transactional email content to live in HTML files I can open in a browser, with translations in JSON files (one HTML for all languages),
+So that I can iterate visually without recompiling and add a language by writing a single JSON file.
+
+**Acceptance Criteria:**
+
+**Given** the directory `apps/api/src/modules/auth/email/templates/`,
+**When** inspected,
+**Then** it contains: `magic-link.{html,txt}`, `share-invite.{html,txt}`, `i18n/fr.json`, `samples.json`, `README.md`.
+
+**Given** any `.html` template,
+**When** opened directly in a browser (`open templates/magic-link.html`),
+**Then** the layout, typography, and colors render correctly (placeholders `{{key}}` visible as literal text — sufficient to validate visual quality without server).
+
+**Given** the design tokens used in the templates,
+**When** compared with `apps/web/src/index.css`,
+**Then** they match the Notion-inspired palette (`#FAFAF9` background, `#37352F` primary, `#1A1A1A` foreground, `#6B6B6B` muted, `#E8E8E7` border, radius 6px) and the Inter font family + system fallback.
+
+**Given** the target email clients (Outlook 2016+ Win+Mac, Outlook.com, Apple Mail iOS+macOS, Gmail web+iOS+Android, Yahoo web),
+**When** the templates are inspected,
+**Then** they comply with: XHTML 1.0 Transitional doctype, table-only layout (no flex/grid), 100% inline CSS (one MSO-conditional `<style>` exception), bulletproof CTA button pattern, hidden preheader, light-only color-scheme meta, no `<form>`/`<iframe>`/JS, hardcoded colors.
+
+**Given** the i18n architecture,
+**When** adding a new language,
+**Then** the only change required is creating `i18n/<code>.json` (copy of `fr.json` with translated values) + extending the `Locale` type. **Zero changes to the HTML.**
+
+**Given** the `TemplateRenderer` at [apps/api/src/modules/auth/email/template-renderer.ts](../../apps/api/src/modules/auth/email/template-renderer.ts),
+**When** `render(name, locale, dynamicVars)` is called,
+**Then** it returns `{ subject, html, text }`. Subject is pulled from the i18n JSON. All variables substituted in the HTML are **HTML-escaped** (XSS-safe). Plain-text variables are **not escaped** (newlines preserved). Missing variables throw an explicit `Error("Missing email template variable: {{xxx}}")`. The HTML/JSON files are cached in memory after first read.
+
+**Given** `EmailTransport`,
+**When** inspected,
+**Then** the interface exposes **typed methods per use case** (no generic `sendMail`): `sendMagicLink({ to, magicLinkUrl, locale })` and `sendShareInvite({ to, dossierName, shareUrl, locale })`. `type Locale = 'fr'` (extensible).
+
+**Given** `nest-cli.json`,
+**When** the API builds,
+**Then** `compilerOptions.assets` copies `templates/**/*.{html,txt,json,md}` into `dist/` so `readFileSync(join(__dirname, 'templates', …))` works in prod.
+
+**Given** the spec `template-renderer.spec.ts`,
+**When** run,
+**Then** all cases pass: substitution, missing variable throws, XSS-escape on HTML, no-escape on text, i18n loading.
+
+---
+
+### Story 11.5: Brevo SMTP Relay Integration
+
+As a platform operator,
+I want emails in production to be sent via Brevo's SMTP relay using standard SMTP credentials,
+So that I can swap providers later (Mailgun, Postmark, …) by changing environment variables only, with zero code change.
+
+**Acceptance Criteria:**
+
+**Given** `NodemailerTransport`,
+**When** configured,
+**Then** `secure: true` is set only for port 465, `requireTLS: true` is set for any other port besides 25 (forces STARTTLS on 587 — Brevo's standard port). Auth credentials are attached only when `SMTP_USER` is non-empty.
+
+**Given** the codebase,
+**When** searched for `brevo` / `getbrevo`,
+**Then** **no Brevo-specific dependency is present** — the code is SMTP-agnostic. Switching providers is an environment-variable change in Coolify.
+
+**Given** `apps/api/.env.example`,
+**When** inspected,
+**Then** it documents two configurations: Mailhog defaults for dev (`SMTP_HOST=localhost`, `SMTP_PORT=1025`) and commented Brevo prod values (`smtp-relay.brevo.com:587`, login = Brevo account email, password = SMTP key from Brevo > SMTP & API, sender = verified sender from Brevo > Senders).
+
+**Given** the `config.schema.ts`,
+**When** compared with the .env,
+**Then** no new env vars are introduced — `SMTP_HOST/PORT/USER/PASSWORD/FROM` already exist.
+
+---
+
+### Story 11.6: Email Preview & Test Tooling
+
+As a developer or designer,
+I want commands to preview email templates locally (visual iteration) and to send real test emails to a local SMTP catcher,
+So that I can validate rendering before production deployment.
+
+**Acceptance Criteria:**
+
+**Given** `pnpm --filter @confluent/api email:preview`,
+**When** run,
+**Then** an HTTP server starts on `localhost:4000` that:
+- Lists all available templates with a locale selector at `/`,
+- Renders any template with sample values from `samples.json` at `/<name>?locale=fr`,
+- Returns the text/plain version at `/<name>.txt?locale=fr`,
+- Injects a 2-second auto-reload script into rendered HTML pages,
+- Uses only `node:http` + existing `tsx` devDep — **no new dependency**.
+
+**Given** `pnpm --filter @confluent/api email:test`,
+**When** run,
+**Then** it:
+- Loads `.env`,
+- Probes SMTP reachability (TCP connect 2s timeout) and fails fast with a clear help message if Mailhog/maildev is not running,
+- Sends one `sendMagicLink` and one `sendShareInvite` to `EMAIL_TEST_TO` (default `test@confluent.local`) using the configured `NodemailerTransport`,
+- Prints the Mailhog UI URL (`http://localhost:8025`).
+
+**Given** `apps/api/package.json`,
+**When** inspected,
+**Then** both scripts are declared via `tsx scripts/email-preview.ts` and `tsx scripts/email-send-test.ts`.
+
+---
+
+### Story 11.7: `/auth` — Mention "Invitation Required"
+
+As a user who mistyped my email or who has not yet been invited,
+I want the auth page to tell me that no account is created automatically,
+So that I understand why my magic-link never arrives and who to contact.
+
+**Acceptance Criteria:**
+
+**Given** the `/auth` page form is visible (before submission),
+**When** rendered,
+**Then** a `<p>` below the form reads: "Aucun compte n'est créé automatiquement. Pour recevoir un lien, vous devez avoir été invité par un administrateur ou par un entrepreneur qui partage un dossier avec vous."
+
+**Given** the success state after submitting,
+**When** rendered,
+**Then** the new mention is NOT shown — only the existing "Vérifiez votre boîte mail" copy is.
+
+**Given** the styling,
+**When** inspected,
+**Then** the new mention uses the same `text-center text-xs text-muted-foreground` classes as the existing "Pas de mot de passe" hint.
 
 **Given** the documentation,
 **When** inspected for language,
