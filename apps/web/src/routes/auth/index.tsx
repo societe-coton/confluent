@@ -112,6 +112,11 @@ export default function AuthRoute() {
             <p className="text-center text-xs text-muted-foreground">
               Pas de mot de passe — vérifiez votre boîte mail
             </p>
+            <p className="text-center text-xs text-muted-foreground">
+              Aucun compte n&apos;est créé automatiquement. Pour recevoir un lien, vous devez avoir
+              été invité par un administrateur ou par un entrepreneur qui partage un dossier avec
+              vous.
+            </p>
           </form>
         )}
       </main>
