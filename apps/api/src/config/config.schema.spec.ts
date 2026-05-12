@@ -17,6 +17,9 @@ const validEnv = {
   S3_BUCKET: 'confluent-dev',
   S3_ACCESS_KEY: 'minioadmin',
   S3_SECRET_KEY: 'minioadmin',
+  SWAGGER_ENABLED: 'true',
+  SWAGGER_USER: 'admin',
+  SWAGGER_PASSWORD: 'swagger-dev-password',
 }
 
 describe('validateConfig', () => {

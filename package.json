@@ -8,12 +8,23 @@
     "pnpm": ">=10"
   },
   "scripts": {
-    "dev": "turbo run dev",
+    "dev": "pnpm --filter @confluent/shared build && concurrently --names \"api,web\" --prefix-colors \"cyan.bold,magenta.bold\" \"pnpm --filter @confluent/api dev\" \"pnpm --filter @confluent/web dev\"",
+    "dev:api": "pnpm --filter @confluent/shared build && pnpm --filter @confluent/api dev",
+    "dev:web": "pnpm --filter @confluent/shared build && pnpm --filter @confluent/web dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck",
+    "db:migrate": "pnpm --filter @confluent/api db:migrate:deploy",
+    "db:migrate:dev": "pnpm --filter @confluent/api db:migrate:dev",
+    "db:migrate:status": "pnpm --filter @confluent/api db:migrate:status",
+    "db:migrate:reset": "pnpm --filter @confluent/api db:migrate:reset",
+    "db:seed": "pnpm --filter @confluent/api db:seed",
+    "db:sync": "pnpm --filter @confluent/api db:sync --",
+    "db:studio": "pnpm --filter @confluent/api db:studio",
+    "api:token": "pnpm --silent --filter @confluent/api exec tsx scripts/issue-token.ts"
   },
   "devDependencies": {
+    "concurrently": "^9.2.1",
     "turbo": "^2.9.0"
   }
 }

@@ -1,0 +1,169 @@
+import { PrismaClient, type user_role } from '@prisma/client'
+import { QUESTIONNAIRE_V1_FIELDS } from '../src/modules/questionnaires/questionnaire.seed'
+
+const prisma = new PrismaClient()
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Dev/preprod fixtures — stable, idempotent.
+// The `@localhost.dev` namespace is RESERVED for seeded accounts. Do not reuse.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const SEED_USERS: ReadonlyArray<{ email: string; role: user_role }> = [
+  { email: 'entrepreneur@localhost.dev', role: 'entrepreneur' },
+  { email: 'financeur@localhost.dev', role: 'financeur' },
+  { email: 'admin@localhost.dev', role: 'admin' },
+]
+
+// Stable share token so tests can reach /v1/shares/:token without env plumbing.
+const SEED_SHARE_TOKEN = '11111111-2222-4333-a555-666666666666'
+
+// Answers for the Biosensio dossier — keyed by field label (resolved at runtime
+// via the published questionnaire). A field not found in the running questionnaire
+// is simply skipped (forward-compat with schema evolutions).
+const BIOSENSIO_ANSWERS: Record<string, string> = {
+  "Nom de l'entreprise": 'Biosensio',
+  "Secteur d'activité": 'Biotech',
+  'Stade de maturité': 'Seed',
+  'Pitch court':
+    'Plateforme de biocapteurs connectés pour le monitoring agricole en temps réel.',
+  'Marché cible':
+    'PME agricoles et coopératives en Centre-Val de Loire, marché européen EUR 2.1B.',
+  'Proposition de valeur':
+    'Réduction de 30% de l’usage de phytosanitaires via des capteurs IoT auto-calibrés.',
+  'Taille du marché (k€)': '2100',
+  'Concurrents principaux':
+    'Semios (US), Connecterra (NL), CropX (IL). Différenciation : calibration sans intervention.',
+  'Chiffre d’affaires (k€)': '120',
+  'Effectif': '8',
+  'Levée en cours (k€)': '1500',
+  'Usage des fonds':
+    'Industrialisation du capteur v2, expansion commerciale France + Benelux.',
+}
+
+async function main(): Promise<void> {
+  // 1) Questionnaire v1 — upsert idempotent (version is unique).
+  await prisma.$transaction(async (tx) => {
+    const version = await tx.questionnaireVersion.upsert({
+      where: { version: 1 },
+      update: {},
+      create: { version: 1, isPublished: true },
+    })
+    const count = await tx.questionnaireField.count({ where: { versionId: version.id } })
+    if (count === 0) {
+      await tx.questionnaireField.createMany({
+        data: QUESTIONNAIRE_V1_FIELDS.map((f) => ({ ...f, versionId: version.id })),
+      })
+      console.log(
+        `[seed] questionnaire v${version.version}: inserted ${QUESTIONNAIRE_V1_FIELDS.length} fields`,
+      )
+    } else {
+      console.log(
+        `[seed] questionnaire v${version.version}: already has ${count} fields — skipping`,
+      )
+    }
+  })
+
+  // 2) Fixtures users — upsert by email.
+  for (const u of SEED_USERS) {
+    const user = await prisma.user.upsert({
+      where: { email: u.email },
+      update: { role: u.role, isActive: true },
+      create: { email: u.email, role: u.role, isActive: true },
+    })
+    console.log(`[seed] user: ${user.email} (${user.role})`)
+  }
+
+  // 3) Optional extra admin — opt-in via SEED_ADMIN_EMAIL.
+  const adminEmail = process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase()
+  if (adminEmail) {
+    const admin = await prisma.user.upsert({
+      where: { email: adminEmail },
+      update: { role: 'admin', isActive: true },
+      create: { email: adminEmail, role: 'admin', isActive: true },
+    })
+    console.log(`[seed] extra admin: ${admin.email} (id=${admin.id})`)
+  }
+
+  // 4) Coherent business data tied to the entrepreneur fixture.
+  const entrepreneur = await prisma.user.findUniqueOrThrow({
+    where: { email: 'entrepreneur@localhost.dev' },
+  })
+  const financeur = await prisma.user.findUniqueOrThrow({
+    where: { email: 'financeur@localhost.dev' },
+  })
+  const activeVersion = await prisma.questionnaireVersion.findFirstOrThrow({
+    where: { isPublished: true },
+    include: { fields: true },
+    orderBy: { version: 'desc' },
+  })
+
+  // 4.a) Submitted dossier with answers + classification.
+  const biosensio = await prisma.dossier.upsert({
+    where: { slug: 'biosensio' },
+    update: {},
+    create: {
+      userId: entrepreneur.id,
+      name: 'Biosensio',
+      slug: 'biosensio',
+      questionnaireVersionId: activeVersion.id,
+      sector: 'Biotech',
+      maturityStage: 'Seed',
+      submittedAt: new Date('2026-03-15T10:00:00.000Z'),
+    },
+  })
+  const biosensioAnswerCount = await prisma.dossierAnswer.count({
+    where: { dossierId: biosensio.id },
+  })
+  if (biosensioAnswerCount === 0) {
+    const answersData = activeVersion.fields
+      .filter((f) => BIOSENSIO_ANSWERS[f.label] !== undefined)
+      .map((f) => ({
+        dossierId: biosensio.id,
+        fieldId: f.id,
+        value: BIOSENSIO_ANSWERS[f.label],
+      }))
+    await prisma.dossierAnswer.createMany({ data: answersData })
+    console.log(`[seed] dossier "${biosensio.slug}": ${answersData.length} answers`)
+  } else {
+    console.log(
+      `[seed] dossier "${biosensio.slug}": already has ${biosensioAnswerCount} answers — skipping`,
+    )
+  }
+
+  // 4.b) Draft dossier — no answers, not submitted yet (useful for "empty state" UI tests).
+  await prisma.dossier.upsert({
+    where: { slug: 'agrotech-innovations' },
+    update: {},
+    create: {
+      userId: entrepreneur.id,
+      name: 'Agrotech Innovations',
+      slug: 'agrotech-innovations',
+      questionnaireVersionId: activeVersion.id,
+    },
+  })
+  console.log('[seed] dossier "agrotech-innovations" (draft)')
+
+  // 5) Share link — financeur has active access to Biosensio via a stable token.
+  const share = await prisma.shareLink.upsert({
+    where: { token: SEED_SHARE_TOKEN },
+    update: { status: 'active', revokedAt: null },
+    create: {
+      dossierId: biosensio.id,
+      recipientEmail: financeur.email,
+      token: SEED_SHARE_TOKEN,
+      status: 'active',
+    },
+  })
+  console.log(`[seed] share link: ${share.token} → ${share.recipientEmail} (${share.status})`)
+
+  console.log('[seed] done')
+}
+
+main()
+  .catch((err: unknown) => {
+    console.error('[seed] error', err)
+    process.exit(1)
+  })
+  .finally(() => {
+    void prisma.$disconnect()
+  })

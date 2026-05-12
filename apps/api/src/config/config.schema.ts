@@ -17,6 +17,12 @@ export const configSchema = z.object({
   S3_BUCKET: z.string().min(1),
   S3_ACCESS_KEY: z.string().min(1),
   S3_SECRET_KEY: z.string().min(1),
+  SWAGGER_ENABLED: z
+    .union([z.boolean(), z.enum(['true', 'false'])])
+    .transform((v) => v === true || v === 'true')
+    .default(true),
+  SWAGGER_USER: z.string().min(1).default('admin'),
+  SWAGGER_PASSWORD: z.string().min(8).default('change-me-in-prod-min-8-chars'),
 })
 
 export type AppConfig = z.infer<typeof configSchema>
