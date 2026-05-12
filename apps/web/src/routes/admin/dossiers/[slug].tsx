@@ -1,46 +1,116 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Info } from 'lucide-react'
 import { Link, Navigate, useParams } from 'react-router-dom'
-import { DossierField } from '@/components/confluent/DossierField'
-import { QUESTIONNAIRE, QUESTIONNAIRE_FLAT } from '@/data/questionnaire'
-import { MOCK_ADMIN_DOSSIERS } from '@/data/mock-admin-dossiers'
+import { toast } from 'sonner'
 import { useCurrentUser } from '@/features/current-user/context'
+import {
+  adminRevokeShare,
+  getAdminDossier,
+  getAdminDossierAuditLog,
+  listAdminDossiers,
+  patchAdminAnswers,
+} from '@/features/admin/dossiers.api'
+import { getActiveQuestionnaire } from '@/features/questionnaire/api'
+import { buildDynamicQuestionnaire } from '@/features/questionnaire/adapter'
+import { useAsync } from '@/lib/useAsync'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import type { ApiError } from '@/lib/api-client'
+
+const SEARCH_PAGE_SIZE = 100
 
 export default function AdminDossierDetailRoute() {
   const user = useCurrentUser()
   if (user.role !== 'admin') return <Navigate to="/dashboard" replace />
-  return <AdminDossierDetailView />
+  return <AdminDossierBySlug />
 }
 
-function AdminDossierDetailView() {
+function AdminDossierBySlug() {
   const { slug } = useParams<{ slug: string }>()
+  // TODO: backend endpoint to resolve dossier id from slug. For V1, scan first page (max 100).
+  const list = useAsync(() => listAdminDossiers(1, SEARCH_PAGE_SIZE), [])
+
+  if (!slug) return <NotFound />
+  if (list.isLoading) return <p className="pt-8 text-sm text-muted-foreground">Chargement…</p>
+  if (list.error) {
+    return (
+      <p className="pt-8 text-sm text-destructive">
+        Impossible de charger la liste des dossiers.
+      </p>
+    )
+  }
+  const item = list.data?.items.find((d) => d.slug === slug)
+  if (!item) return <NotFound />
+  return <AdminDossierDetailView dossierId={item.id} dossierName={item.name} />
+}
+
+function NotFound() {
+  return (
+    <section className="mx-auto max-w-md pt-16 text-center">
+      <title>Dossier introuvable · Confluent</title>
+      <p className="text-sm text-muted-foreground">Dossier introuvable.</p>
+      <Link
+        to="/admin/dossiers"
+        className="mt-4 inline-block text-sm underline hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)]"
+      >
+        Retour à la liste
+      </Link>
+    </section>
+  )
+}
+
+function AdminDossierDetailView({
+  dossierId,
+  dossierName,
+}: {
+  dossierId: string
+  dossierName: string
+}) {
   const headingRef = useRef<HTMLHeadingElement>(null)
-  const dossier = slug
-    ? MOCK_ADMIN_DOSSIERS.find((d) => d.slug === slug)
-    : undefined
+  const detailQuery = useAsync(() => getAdminDossier(dossierId), [dossierId])
+  const auditQuery = useAsync(() => getAdminDossierAuditLog(dossierId), [dossierId])
+  const questionnaireQuery = useAsync(() => getActiveQuestionnaire(), [])
 
   useEffect(() => {
     headingRef.current?.focus()
-  }, [slug])
+  }, [dossierId])
 
-  if (!dossier) {
-    return (
-      <section className="mx-auto max-w-md pt-16 text-center">
-        <title>Dossier introuvable · Confluent</title>
-        <p className="text-sm text-muted-foreground">Dossier introuvable.</p>
-        <Link
-          to="/admin/dossiers"
-          className="mt-4 inline-block text-sm underline hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)]"
-        >
-          Retour à la liste
-        </Link>
-      </section>
-    )
+  const answersByFieldId = useMemo<Record<string, string>>(() => {
+    const map: Record<string, string> = {}
+    for (const a of detailQuery.data?.answers ?? []) map[a.fieldId] = a.value
+    return map
+  }, [detailQuery.data])
+
+  const dynamic = useMemo(
+    () => (questionnaireQuery.data ? buildDynamicQuestionnaire(questionnaireQuery.data) : null),
+    [questionnaireQuery.data],
+  )
+
+  const handleSaveAnswer = useCallback(
+    async (fieldId: string, value: string) => {
+      await patchAdminAnswers(dossierId, [{ fieldId, value }])
+      toast.success('Réponse mise à jour')
+      detailQuery.refetch()
+      auditQuery.refetch()
+    },
+    [dossierId, detailQuery, auditQuery],
+  )
+
+  async function handleRevokeShare(linkId: string) {
+    try {
+      await adminRevokeShare(dossierId, linkId)
+      toast.success('Accès révoqué')
+      detailQuery.refetch()
+      auditQuery.refetch()
+    } catch (err) {
+      const apiErr = err as ApiError
+      toast.error(apiErr?.message ?? 'Révocation impossible.')
+    }
   }
 
   return (
     <div className="mx-auto max-w-[720px]">
-      <title>{dossier.name} · Confluent</title>
+      <title>{dossierName} · Confluent</title>
 
       <nav aria-label="Fil d'Ariane" className="mb-4">
         <ol className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
@@ -53,9 +123,7 @@ function AdminDossierDetailView() {
             </Link>
           </li>
           <li className="flex items-center gap-1.5">
-            <span aria-hidden="true" className="text-muted-foreground/60">
-              /
-            </span>
+            <span aria-hidden="true" className="text-muted-foreground/60">/</span>
             <Link
               to="/admin/dossiers"
               className="rounded-sm hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)]"
@@ -64,11 +132,9 @@ function AdminDossierDetailView() {
             </Link>
           </li>
           <li className="flex items-center gap-1.5">
-            <span aria-hidden="true" className="text-muted-foreground/60">
-              /
-            </span>
+            <span aria-hidden="true" className="text-muted-foreground/60">/</span>
             <span aria-current="page" className="font-medium text-foreground">
-              {dossier.name}
+              {dossierName}
             </span>
           </li>
         </ol>
@@ -79,7 +145,7 @@ function AdminDossierDetailView() {
         tabIndex={-1}
         className="font-heading text-2xl font-semibold text-foreground md:text-[28px] focus-visible:outline-none"
       >
-        {dossier.name}
+        {dossierName}
       </h1>
 
       <div
@@ -87,38 +153,188 @@ function AdminDossierDetailView() {
         className="mt-4 flex items-start gap-3 rounded-md border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground"
       >
         <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-foreground" />
-        <p>Vous consultez ce dossier en tant qu&apos;administrateur.</p>
+        <p>
+          Vous consultez ce dossier en tant qu&apos;administrateur. Chaque modification est tracée
+          dans le journal d&apos;audit ci-dessous.
+        </p>
       </div>
 
-      {dossier.answers ? (
-        <div className="mt-8 flex flex-col gap-10">
-          {QUESTIONNAIRE.map((section, i) => {
-            const sectionMetas = QUESTIONNAIRE_FLAT.filter(
-              (q) => q.sectionId === section.id,
-            )
-            return (
-              <section key={section.id}>
-                <h2 className="font-heading text-xl font-semibold text-foreground md:text-2xl">
-                  {i + 1}. {section.title}
-                </h2>
-                <dl className="mt-4 flex flex-col gap-6">
-                  {sectionMetas.map((q) => (
-                    <DossierField
-                      key={q.id}
-                      label={q.label}
-                      value={dossier.answers?.[q.id] ?? ''}
-                    />
-                  ))}
-                </dl>
-              </section>
-            )
-          })}
-        </div>
-      ) : (
-        <p className="mt-8 text-sm text-muted-foreground">
-          Ce dossier n&apos;a pas encore de contenu renseigné.
+      {detailQuery.isLoading || questionnaireQuery.isLoading ? (
+        <p className="mt-8 text-sm text-muted-foreground">Chargement…</p>
+      ) : detailQuery.error || !detailQuery.data || !dynamic ? (
+        <p className="mt-8 text-sm text-destructive">
+          Impossible de charger le dossier.
         </p>
+      ) : (
+        <>
+          <div className="mt-8 flex flex-col gap-10">
+            {dynamic.sections.map((section, i) => {
+              const sectionMetas = dynamic.flat.filter((q) => q.sectionId === section.id)
+              return (
+                <section key={section.id}>
+                  <h2 className="font-heading text-xl font-semibold text-foreground md:text-2xl">
+                    {i + 1}. {section.title}
+                  </h2>
+                  <dl className="mt-4 flex flex-col gap-6">
+                    {sectionMetas.map((q) => (
+                      <AdminEditableField
+                        key={q.id}
+                        label={q.label}
+                        value={answersByFieldId[q.id] ?? ''}
+                        onSave={(value) => handleSaveAnswer(q.id, value)}
+                      />
+                    ))}
+                  </dl>
+                </section>
+              )
+            })}
+          </div>
+
+          <section className="mt-10">
+            <h2 className="font-heading text-xl font-semibold text-foreground md:text-2xl">
+              Partages
+            </h2>
+            <div className="mt-4 overflow-hidden rounded-lg border border-border bg-card">
+              {detailQuery.data.shareLinks.length === 0 ? (
+                <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+                  Aucun partage pour ce dossier.
+                </p>
+              ) : (
+                <ul role="list" className="m-0 list-none divide-y divide-border p-0">
+                  {detailQuery.data.shareLinks.map((s) => (
+                    <li
+                      key={s.id}
+                      className="flex items-center justify-between gap-3 px-4 py-3 text-sm"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-foreground">{s.recipientEmail}</p>
+                        <p className="text-xs text-muted-foreground">Statut : {s.status}</p>
+                      </div>
+                      {s.status !== 'revoked' && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleRevokeShare(s.id)}
+                        >
+                          Révoquer
+                        </Button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </section>
+        </>
       )}
+
+      <section className="mt-10">
+        <h2 className="font-heading text-xl font-semibold text-foreground md:text-2xl">
+          Journal d&apos;audit
+        </h2>
+        <div className="mt-4 overflow-hidden rounded-lg border border-border bg-card">
+          {auditQuery.isLoading ? (
+            <p className="px-4 py-6 text-center text-sm text-muted-foreground">Chargement…</p>
+          ) : (auditQuery.data ?? []).length === 0 ? (
+            <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+              Aucun événement à afficher.
+            </p>
+          ) : (
+            <ul role="list" className="m-0 list-none divide-y divide-border p-0">
+              {(auditQuery.data ?? []).map((event) => (
+                <li key={event.id} className="px-4 py-3 text-sm">
+                  <p className="font-mono text-xs text-muted-foreground">
+                    {new Date(event.createdAt).toLocaleString('fr-FR')}
+                  </p>
+                  <p className="mt-1 text-foreground">{event.actionType}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function AdminEditableField({
+  label,
+  value,
+  onSave,
+}: {
+  label: string
+  value: string
+  onSave: (next: string) => Promise<void>
+}) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (!editing) setDraft(value)
+  }, [value, editing])
+
+  async function handleSave() {
+    if (draft === value) {
+      setEditing(false)
+      return
+    }
+    setSaving(true)
+    try {
+      await onSave(draft)
+      setEditing(false)
+    } catch (err) {
+      const apiErr = err as ApiError
+      toast.error(apiErr?.message ?? 'Sauvegarde impossible.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <dt className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</dt>
+      <dd>
+        {editing ? (
+          <div className="flex flex-col gap-2">
+            <Input
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              disabled={saving}
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <Button type="button" size="sm" onClick={handleSave} disabled={saving}>
+                {saving ? 'Sauvegarde…' : 'Enregistrer'}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setEditing(false)}
+                disabled={saving}
+              >
+                Annuler
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-start justify-between gap-3">
+            <p className="whitespace-pre-wrap break-words text-sm text-foreground">
+              {value || <span className="text-muted-foreground">—</span>}
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setEditing(true)}
+            >
+              Modifier
+            </Button>
+          </div>
+        )}
+      </dd>
     </div>
   )
 }

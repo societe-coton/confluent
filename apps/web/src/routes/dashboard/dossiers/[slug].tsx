@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -9,10 +9,15 @@ import { DossierField } from '@/components/confluent/DossierField'
 import { MetricCard } from '@/components/confluent/MetricCard'
 import { RevokeAccessDialog } from '@/components/confluent/RevokeAccessDialog'
 import { SharePanel } from '@/components/confluent/SharePanel'
-import { QUESTIONNAIRE, QUESTIONNAIRE_FLAT } from '@/data/questionnaire'
-import { MOCK_DOSSIERS } from '@/data/mock-dossiers'
-import { MOCK_ANALYTICS, type AccessEntry } from '@/data/mock-analytics'
-import { useCurrentUser } from '@/features/current-user/context'
+import { getDossier, listDossiers } from '@/features/dossiers/api'
+import { listAnswers } from '@/features/dossiers/answers.api'
+import { listShares, createShare, revokeShare } from '@/features/shares/api'
+import { getAnalytics } from '@/features/analytics/api'
+import { buildAccessEntries } from '@/features/shares/build-access-entries'
+import type { AccessEntry } from '@/features/shares/access-entry'
+import { useAsync } from '@/lib/useAsync'
+import { buildDynamicQuestionnaire } from '@/features/questionnaire/adapter'
+import type { ApiError } from '@/lib/api-client'
 
 const TAB_VALUES = {
   content: 'content',
@@ -21,106 +26,85 @@ const TAB_VALUES = {
 
 type TabValue = (typeof TAB_VALUES)[keyof typeof TAB_VALUES]
 
-interface PersistedDraft {
-  answers: Record<string, string>
-  position?: number
-  view?: 'question' | 'summary'
-  updatedAt?: string
-}
-
-function loadDossier(slug: string): { answers: Record<string, string> } | null {
-  try {
-    const raw = localStorage.getItem(`confluent_dossier_${slug}`)
-    if (!raw) return null
-    const parsed = JSON.parse(raw) as PersistedDraft
-    if (
-      typeof parsed !== 'object' ||
-      parsed === null ||
-      typeof parsed.answers !== 'object' ||
-      parsed.answers === null
-    ) {
-      return null
-    }
-    const entries = Object.entries(parsed.answers).filter(
-      (entry): entry is [string, string] => typeof entry[1] === 'string',
-    )
-    if (entries.length === 0) return null
-    return { answers: Object.fromEntries(entries) }
-  } catch {
-    return null
-  }
-}
-
-function deslugifyForDisplay(slug: string): string {
-  return slug
-    .split('-')
-    .filter(Boolean)
-    .map((t) => t.charAt(0).toUpperCase() + t.slice(1))
-    .join(' ')
-}
-
-function resolveDisplayName(slug: string): string {
-  const mock = MOCK_DOSSIERS.find((d) => d.slug === slug)
-  if (mock) return mock.name
-  return deslugifyForDisplay(slug)
-}
-
-function deriveInitials(email: string): string {
-  const localPart = email.split('@')[0] ?? ''
-  const alpha = localPart.replace(/[^a-zA-Z]+/g, '').toUpperCase()
-  if (alpha.length >= 2) return alpha.slice(0, 2)
-  if (alpha.length === 1) return `${alpha}·`
-  return '··'
-}
-
-function formatRevokedAt(date: Date): string {
-  return date.toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
+function formatDuration(seconds: number | null): string {
+  if (seconds === null || !Number.isFinite(seconds)) return '—'
+  const min = Math.floor(seconds / 60)
+  const sec = Math.floor(seconds % 60)
+  return `${min}m ${sec.toString().padStart(2, '0')}s`
 }
 
 export default function DossierViewRoute() {
   const { slug } = useParams<{ slug: string }>()
-  return <DossierView key={slug ?? 'no-slug'} />
+  if (!slug) {
+    return <NotFound />
+  }
+  return <DossierBySlug key={slug} slug={slug} />
 }
 
-function DossierView() {
-  const { slug } = useParams<{ slug: string }>()
+function DossierBySlug({ slug }: { slug: string }) {
+  const dossiersQuery = useAsync(() => listDossiers(), [])
+  const dossier = dossiersQuery.data?.find((d) => d.slug === slug)
+
+  if (dossiersQuery.isLoading) {
+    return <p className="pt-8 text-sm text-muted-foreground">Chargement…</p>
+  }
+  if (dossiersQuery.error) {
+    return (
+      <p className="pt-8 text-sm text-destructive">
+        Impossible de charger vos dossiers.
+      </p>
+    )
+  }
+  if (!dossier) {
+    return <NotFound />
+  }
+  return <DossierView dossierId={dossier.id} slug={dossier.slug} fallbackName={dossier.name} />
+}
+
+function NotFound() {
+  return (
+    <section className="mx-auto max-w-md pt-16 text-center">
+      <title>Dossier introuvable · Confluent</title>
+      <p className="text-sm text-muted-foreground">Dossier introuvable.</p>
+      <Link
+        to="/dashboard"
+        className="mt-4 inline-block text-sm underline hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)]"
+      >
+        Retour au tableau de bord
+      </Link>
+    </section>
+  )
+}
+
+function DossierView({
+  dossierId,
+  fallbackName,
+}: {
+  dossierId: string
+  slug: string
+  fallbackName: string
+}) {
   const [searchParams, setSearchParams] = useSearchParams()
   const headingRef = useRef<HTMLHeadingElement>(null)
-  const currentUser = useCurrentUser()
   const [shareOpen, setShareOpen] = useState(false)
-  const [accessEntries, setAccessEntries] = useState<AccessEntry[]>(
-    () => [...MOCK_ANALYTICS.accessEntries],
-  )
   const [entryToRevoke, setEntryToRevoke] = useState<AccessEntry | null>(null)
   const revokingRef = useRef(false)
 
-  const mock = slug ? MOCK_DOSSIERS.find((d) => d.slug === slug) : undefined
-  const dossier = slug ? loadDossier(slug) : null
+  const dossierQuery = useAsync(() => getDossier(dossierId), [dossierId])
+  const answersQuery = useAsync(() => listAnswers(dossierId), [dossierId])
+  const sharesQuery = useAsync(() => listShares(dossierId), [dossierId])
+  const analyticsQuery = useAsync(() => getAnalytics(dossierId), [dossierId])
 
   useEffect(() => {
     headingRef.current?.focus()
-  }, [slug])
+  }, [dossierId])
 
-  if (!slug || (!mock && !dossier)) {
-    return (
-      <section className="mx-auto max-w-md pt-16 text-center">
-        <title>Dossier introuvable · Confluent</title>
-        <p className="text-sm text-muted-foreground">Dossier introuvable.</p>
-        <Link
-          to="/dashboard"
-          className="mt-4 inline-block text-sm underline hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)]"
-        >
-          Retour au tableau de bord
-        </Link>
-      </section>
-    )
-  }
+  const accessEntries = useMemo<AccessEntry[]>(
+    () => buildAccessEntries(sharesQuery.data ?? [], analyticsQuery.data),
+    [sharesQuery.data, analyticsQuery.data],
+  )
 
-  const displayName = resolveDisplayName(slug)
+  const displayName = dossierQuery.data?.name ?? fallbackName
   const activeTab: TabValue =
     searchParams.get('tab') === TAB_VALUES.analytics
       ? TAB_VALUES.analytics
@@ -141,48 +125,49 @@ function DossierView() {
     )
   }
 
-  function handleInvitationSubmit(email: string) {
-    setAccessEntries((prev) => [
-      {
-        email,
-        initials: deriveInitials(email),
-        status: 'pending',
-        lastSeen: "Invitation envoyée à l'instant",
-        sessionDuration: '—',
-      },
-      ...prev,
-    ])
-    toast.success(`Invitation envoyée à ${email}`)
-    setShareOpen(false)
-  }
+  const handleInvitationSubmit = useCallback(
+    async (email: string) => {
+      try {
+        await createShare(dossierId, email)
+        toast.success(`Invitation envoyée à ${email}`)
+        setShareOpen(false)
+        sharesQuery.refetch()
+      } catch (err) {
+        const apiErr = err as ApiError
+        throw new Error(apiErr?.message ?? "L'invitation a échoué.")
+      }
+    },
+    [dossierId, sharesQuery],
+  )
 
   function handleRevokeClick(entry: AccessEntry) {
     revokingRef.current = false
     setEntryToRevoke(entry)
   }
 
-  function handleConfirmRevoke(entry: AccessEntry) {
+  async function handleConfirmRevoke(entry: AccessEntry) {
     if (revokingRef.current) return
     revokingRef.current = true
-    const now = new Date()
-    setAccessEntries((prev) =>
-      prev.map((e) => {
-        if (e.email !== entry.email || e.status === 'revoked') return e
-        return {
-          email: e.email,
-          initials: e.initials,
-          lastSeen: e.lastSeen,
-          sessionDuration: e.sessionDuration,
-          status: 'revoked' as const,
-          revokedAt: formatRevokedAt(now),
-          revokedAtIso: now.toISOString(),
-          revokedBy: currentUser.name,
-        }
-      }),
-    )
-    toast.success('Accès révoqué')
+    try {
+      await revokeShare(dossierId, entry.id)
+      toast.success('Accès révoqué')
+      sharesQuery.refetch()
+    } catch (err) {
+      const apiErr = err as ApiError
+      toast.error(apiErr?.message ?? 'Révocation impossible.')
+    }
     setEntryToRevoke(null)
   }
+
+  const questionnaire = dossierQuery.data?.questionnaireVersion
+    ? buildDynamicQuestionnaire(dossierQuery.data.questionnaireVersion)
+    : null
+  const answersByFieldId: Record<string, string> = {}
+  for (const row of answersQuery.data ?? []) {
+    answersByFieldId[row.fieldId] = row.value
+  }
+
+  const isContentReady = !dossierQuery.isLoading && !answersQuery.isLoading
 
   return (
     <div className="mx-auto max-w-[720px]">
@@ -245,10 +230,12 @@ function DossierView() {
         </TabsList>
 
         <TabsContent value={TAB_VALUES.content}>
-          {dossier ? (
+          {!isContentReady ? (
+            <p className="text-sm text-muted-foreground">Chargement du contenu…</p>
+          ) : questionnaire ? (
             <div className="flex flex-col gap-10">
-              {QUESTIONNAIRE.map((section, i) => {
-                const sectionMetas = QUESTIONNAIRE_FLAT.filter(
+              {questionnaire.sections.map((section, i) => {
+                const sectionMetas = questionnaire.flat.filter(
                   (q) => q.sectionId === section.id,
                 )
                 return (
@@ -261,7 +248,7 @@ function DossierView() {
                         <DossierField
                           key={q.id}
                           label={q.label}
-                          value={dossier.answers[q.id] ?? ''}
+                          value={answersByFieldId[q.id] ?? ''}
                         />
                       ))}
                     </dl>
@@ -279,21 +266,18 @@ function DossierView() {
         <TabsContent value={TAB_VALUES.analytics}>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <MetricCard
-              key={MOCK_ANALYTICS.metrics[0].label}
-              label={MOCK_ANALYTICS.metrics[0].label}
-              value={accessEntries
-                .filter((e) => e.status !== 'revoked')
-                .length.toString()}
+              label="Destinataires actifs"
+              value={(analyticsQuery.data?.activeRecipients ?? 0).toString()}
             />
             <MetricCard
-              key={MOCK_ANALYTICS.metrics[1].label}
-              label={MOCK_ANALYTICS.metrics[1].label}
-              value={MOCK_ANALYTICS.metrics[1].value}
+              label="Vues totales"
+              value={(analyticsQuery.data?.totalViews ?? 0).toString()}
             />
             <MetricCard
-              key={MOCK_ANALYTICS.metrics[2].label}
-              label={MOCK_ANALYTICS.metrics[2].label}
-              value={MOCK_ANALYTICS.metrics[2].value}
+              label="Durée moy. de session"
+              value={formatDuration(
+                analyticsQuery.data?.avgSessionDurationSeconds ?? null,
+              )}
             />
           </div>
 
@@ -302,7 +286,11 @@ function DossierView() {
               Accès &amp; partage
             </h2>
             <div className="mt-4 overflow-hidden rounded-lg border border-border bg-card">
-              {accessEntries.length === 0 ? (
+              {sharesQuery.isLoading ? (
+                <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+                  Chargement…
+                </p>
+              ) : accessEntries.length === 0 ? (
                 <p className="px-4 py-6 text-center text-sm text-muted-foreground">
                   Aucun destinataire pour le moment.
                 </p>
@@ -310,7 +298,7 @@ function DossierView() {
                 <ul role="list" className="m-0 list-none p-0">
                   {accessEntries.map((entry) => (
                     <AccessListRow
-                      key={entry.email}
+                      key={entry.id}
                       entry={entry}
                       onRevokeClick={handleRevokeClick}
                     />

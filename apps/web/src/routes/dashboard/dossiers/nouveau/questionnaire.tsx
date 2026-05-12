@@ -1,107 +1,131 @@
-import { useEffect, useRef, useState } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
-import {
-  QUESTIONNAIRE,
-  QUESTIONNAIRE_FLAT,
-  TOTAL_QUESTIONS,
-} from '@/data/questionnaire'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { QuestionnaireProgress } from '@/features/questionnaire/components/QuestionnaireProgress'
 import { QuestionnaireStep } from '@/features/questionnaire/components/QuestionnaireStep'
 import { SectionSummary } from '@/features/questionnaire/components/SectionSummary'
-import { slugify } from '@/lib/slugify'
+import { getActiveQuestionnaire } from '@/features/questionnaire/api'
+import { buildDynamicQuestionnaire, type DynamicQuestionnaire } from '@/features/questionnaire/adapter'
+import { listAnswers, upsertAnswers } from '@/features/dossiers/answers.api'
+import { useAsync } from '@/lib/useAsync'
+import type { AnswerInput } from '@confluent/shared'
 
-const DRAFT_NAME_KEY = 'confluent_draft_name'
-
-function draftAnswersKey(name: string) {
-  return `confluent_draft_${name}`
-}
-
-interface DraftState {
-  answers: Record<string, string>
-  position: number
-  view: 'question' | 'summary'
-  updatedAt: string
-}
-
-function emptyDraft(): DraftState {
-  return {
-    answers: {},
-    position: 1,
-    view: 'question',
-    updatedAt: new Date().toISOString(),
-  }
-}
-
-function loadDraft(dossierName: string): DraftState {
-  try {
-    const raw = localStorage.getItem(draftAnswersKey(dossierName))
-    if (!raw) return emptyDraft()
-    const parsed = JSON.parse(raw) as unknown
-    if (
-      typeof parsed !== 'object' ||
-      parsed === null ||
-      typeof (parsed as DraftState).position !== 'number' ||
-      !Number.isFinite((parsed as DraftState).position) ||
-      typeof (parsed as DraftState).answers !== 'object' ||
-      (parsed as DraftState).answers === null
-    ) {
-      return emptyDraft()
-    }
-    const draft = parsed as DraftState
-    const clamped = Math.min(Math.max(1, draft.position), TOTAL_QUESTIONS)
-    const clampedQuestion = QUESTIONNAIRE_FLAT[clamped - 1]
-    const isValidSummaryPosition =
-      draft.view === 'summary' &&
-      clampedQuestion.sectionIndex < 3 &&
-      clamped === lastGlobalIndexOfSection(clampedQuestion.sectionId)
-    const view: 'question' | 'summary' = isValidSummaryPosition
-      ? 'summary'
-      : 'question'
-    return {
-      answers: draft.answers,
-      position: clamped,
-      view,
-      updatedAt: draft.updatedAt ?? new Date().toISOString(),
-    }
-  } catch {
-    return emptyDraft()
-  }
-}
-
-function lastGlobalIndexOfSection(sectionId: string): number {
-  const sectionMetas = QUESTIONNAIRE_FLAT.filter(
-    (q) => q.sectionId === sectionId,
-  )
-  if (sectionMetas.length === 0) return TOTAL_QUESTIONS
-  return sectionMetas[sectionMetas.length - 1].globalIndex
-}
+const AUTOSAVE_DEBOUNCE_MS = 800
 
 export default function QuestionnaireRoute() {
-  const dossierName = localStorage.getItem(DRAFT_NAME_KEY)
-  if (!dossierName) {
+  const [searchParams] = useSearchParams()
+  const dossierId = searchParams.get('dossierId')
+
+  if (!dossierId) {
     return <Navigate to="/dashboard/dossiers/nouveau" replace />
   }
 
-  return <QuestionnaireWizard dossierName={dossierName} />
+  return <QuestionnaireLoader dossierId={dossierId} />
 }
 
-function QuestionnaireWizard({ dossierName }: { dossierName: string }) {
+function QuestionnaireLoader({ dossierId }: { dossierId: string }) {
+  const questionnaireQuery = useAsync(() => getActiveQuestionnaire(), [])
+  const answersQuery = useAsync(() => listAnswers(dossierId), [dossierId])
+
+  if (questionnaireQuery.isLoading || answersQuery.isLoading) {
+    return <p className="pt-8 text-sm text-muted-foreground">Chargement du questionnaire…</p>
+  }
+  if (questionnaireQuery.error || answersQuery.error || !questionnaireQuery.data) {
+    return (
+      <p className="pt-8 text-sm text-destructive">
+        Impossible de charger le questionnaire. Réessayez plus tard.
+      </p>
+    )
+  }
+  const initialAnswers: Record<string, string> = {}
+  for (const row of answersQuery.data ?? []) {
+    initialAnswers[row.fieldId] = row.value
+  }
+  const dynamic = buildDynamicQuestionnaire(questionnaireQuery.data)
+  if (dynamic.totalQuestions === 0) {
+    return (
+      <p className="pt-8 text-sm text-destructive">
+        Aucune question disponible. Contactez un administrateur.
+      </p>
+    )
+  }
+  return (
+    <QuestionnaireWizard
+      dossierId={dossierId}
+      questionnaire={dynamic}
+      initialAnswers={initialAnswers}
+    />
+  )
+}
+
+interface WizardState {
+  answers: Record<string, string>
+  position: number
+  view: 'question' | 'summary'
+}
+
+function QuestionnaireWizard({
+  dossierId,
+  questionnaire,
+  initialAnswers,
+}: {
+  dossierId: string
+  questionnaire: DynamicQuestionnaire
+  initialAnswers: Record<string, string>
+}) {
   const navigate = useNavigate()
-  const [draft, setDraft] = useState<DraftState>(() => loadDraft(dossierName))
+  const { sections, flat, totalQuestions } = questionnaire
+  const totalSections = sections.length
+
+  const [state, setState] = useState<WizardState>({
+    answers: initialAnswers,
+    position: 1,
+    view: 'question',
+  })
   const [direction, setDirection] = useState<'forward' | 'backward'>('forward')
   const [editingFromSummary, setEditingFromSummary] = useState(false)
   const editingRef = useRef(editingFromSummary)
   useEffect(() => {
     editingRef.current = editingFromSummary
   }, [editingFromSummary])
-  const { answers, position, view } = draft
+  const { answers, position, view } = state
+
+  const lastSavedRef = useRef<Record<string, string>>(initialAnswers)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function diffAgainstSaved(current: Record<string, string>): AnswerInput[] {
+    const diff: AnswerInput[] = []
+    for (const [fieldId, value] of Object.entries(current)) {
+      if (lastSavedRef.current[fieldId] !== value) {
+        diff.push({ fieldId, value })
+      }
+    }
+    return diff
+  }
+
+  async function flushSave(current: Record<string, string>): Promise<void> {
+    const diff = diffAgainstSaved(current)
+    if (diff.length === 0) return
+    const snapshot = { ...current }
+    try {
+      await upsertAnswers(dossierId, diff)
+      lastSavedRef.current = { ...lastSavedRef.current, ...snapshot }
+    } catch {
+      // swallow — autosave is best-effort; explicit submit will retry
+    }
+  }
+
+  function scheduleSave(current: Record<string, string>) {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(() => {
+      void flushSave(current)
+    }, AUTOSAVE_DEBOUNCE_MS)
+  }
 
   useEffect(() => {
-    localStorage.setItem(
-      draftAnswersKey(dossierName),
-      JSON.stringify(draft),
-    )
-  }, [dossierName, draft])
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    }
+  }, [])
 
   useEffect(() => {
     function onDocumentKeyDown(e: KeyboardEvent) {
@@ -119,118 +143,103 @@ function QuestionnaireWizard({ dossierName }: { dossierName: string }) {
         return
       }
       e.preventDefault()
-      setDraft((prev) => {
+      setState((prev) => {
         if (prev.view === 'summary') return prev
         if (prev.position <= 1) return prev
         setDirection('backward')
-        return {
-          ...prev,
-          position: prev.position - 1,
-          updatedAt: new Date().toISOString(),
-        }
+        return { ...prev, position: prev.position - 1 }
       })
     }
     window.addEventListener('keydown', onDocumentKeyDown)
     return () => window.removeEventListener('keydown', onDocumentKeyDown)
   }, [])
 
-  function patchDraft(patch: Partial<Omit<DraftState, 'updatedAt'>>) {
-    setDraft((prev) => ({
-      ...prev,
-      ...patch,
-      updatedAt: new Date().toISOString(),
-    }))
-  }
+  const currentQuestion = flat[position - 1]
+  const currentSection = useMemo(
+    () => sections.find((s) => s.id === currentQuestion.sectionId)!,
+    [sections, currentQuestion.sectionId],
+  )
+  const sectionMetas = useMemo(
+    () => flat.filter((q) => q.sectionId === currentQuestion.sectionId),
+    [flat, currentQuestion.sectionId],
+  )
+  const lastGlobalIndexOfCurrentSection = sectionMetas[sectionMetas.length - 1].globalIndex
 
-  const currentQuestion = QUESTIONNAIRE_FLAT[position - 1]
-  const currentSection = QUESTIONNAIRE.find(
-    (s) => s.id === currentQuestion.sectionId,
-  )!
   const indicatorText =
     view === 'summary'
       ? `Récapitulatif · Section ${currentQuestion.sectionIndex} · ${currentSection.title}`
       : `Section ${currentQuestion.sectionIndex} · Question ${currentQuestion.positionInSection} sur ${currentSection.questions.length}`
 
-  function handleAdvance(cleaned: string) {
+  async function handleAdvance(cleaned: string) {
     const nextAnswers = { ...answers, [currentQuestion.id]: cleaned }
+    await flushSave(nextAnswers)
 
     if (editingFromSummary) {
       setEditingFromSummary(false)
       setDirection('forward')
-      patchDraft({
+      setState({
         answers: nextAnswers,
-        position: lastGlobalIndexOfSection(currentQuestion.sectionId),
+        position: lastGlobalIndexOfCurrentSection,
         view: 'summary',
       })
       return
     }
 
-    if (position >= TOTAL_QUESTIONS) {
-      const finalDraft: DraftState = {
-        answers: nextAnswers,
-        position,
-        view: 'question',
-        updatedAt: new Date().toISOString(),
-      }
-      const slug = slugify(dossierName)
-      const rawKey = draftAnswersKey(dossierName)
-      if (slug) {
-        localStorage.setItem(
-          `confluent_dossier_${slug}`,
-          JSON.stringify(finalDraft),
-        )
-        localStorage.removeItem(rawKey)
-      } else {
-        localStorage.setItem(rawKey, JSON.stringify(finalDraft))
-      }
-      setDraft(finalDraft)
-      navigate('/dashboard/dossiers/nouveau/recapitulatif')
+    if (position >= totalQuestions) {
+      setState({ answers: nextAnswers, position, view: 'question' })
+      navigate(
+        `/dashboard/dossiers/nouveau/recapitulatif?dossierId=${encodeURIComponent(dossierId)}`,
+      )
       return
     }
 
     const isSectionBoundary =
-      currentQuestion.positionInSection ===
-        currentSection.questions.length && currentQuestion.sectionIndex < 3
+      currentQuestion.positionInSection === currentSection.questions.length &&
+      currentQuestion.sectionIndex < totalSections
     if (isSectionBoundary) {
       setDirection('forward')
-      patchDraft({ answers: nextAnswers, view: 'summary' })
+      setState({ ...state, answers: nextAnswers, view: 'summary' })
       return
     }
 
     setDirection('forward')
-    patchDraft({ answers: nextAnswers, position: position + 1 })
+    setState({ ...state, answers: nextAnswers, position: position + 1 })
   }
 
   function handleBack() {
     if (editingFromSummary) return
     if (position > 1) {
       setDirection('backward')
-      patchDraft({ position: position - 1 })
+      setState({ ...state, position: position - 1 })
     }
   }
 
   function handleAnswerChange(next: string) {
-    patchDraft({ answers: { ...answers, [currentQuestion.id]: next } })
+    const nextAnswers = { ...answers, [currentQuestion.id]: next }
+    setState({ ...state, answers: nextAnswers })
+    scheduleSave(nextAnswers)
   }
 
   function handleEditFromSummary(targetGlobalIndex: number) {
     setEditingFromSummary(true)
     setDirection('backward')
-    patchDraft({ position: targetGlobalIndex, view: 'question' })
+    setState({ ...state, position: targetGlobalIndex, view: 'question' })
   }
 
   function handleReturnToSummary() {
     setEditingFromSummary(false)
     setDirection('forward')
-    patchDraft({
-      position: lastGlobalIndexOfSection(currentQuestion.sectionId),
+    setState({
+      ...state,
+      position: lastGlobalIndexOfCurrentSection,
       view: 'summary',
     })
   }
 
   function handleValidateSection() {
     setDirection('forward')
-    patchDraft({
+    setState({
+      ...state,
       position: position + 1,
       view: 'question',
     })
@@ -240,7 +249,7 @@ function QuestionnaireWizard({ dossierName }: { dossierName: string }) {
     <>
       <title>Questionnaire · Confluent</title>
       <div className="-mx-6 -mt-8">
-        <QuestionnaireProgress position={position} total={TOTAL_QUESTIONS} />
+        <QuestionnaireProgress position={position} total={totalQuestions} />
       </div>
       <div
         role="status"
@@ -262,6 +271,7 @@ function QuestionnaireWizard({ dossierName }: { dossierName: string }) {
           <SectionSummary
             section={currentSection}
             sectionIndex={currentQuestion.sectionIndex}
+            sectionMetas={sectionMetas}
             answers={answers}
             onEdit={handleEditFromSummary}
             onValidate={handleValidateSection}

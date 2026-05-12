@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
-import { QUESTIONNAIRE_FLAT, type Section } from '@/data/questionnaire'
+import type { QuestionMeta, Section } from '@/data/questionnaire'
 
 export interface SectionSummaryProps {
   section: Section
   sectionIndex: number
+  sectionMetas: QuestionMeta[]
   answers: Record<string, string>
   onEdit: (globalIndex: number) => void
   onValidate: () => void
@@ -13,6 +14,7 @@ export interface SectionSummaryProps {
 export function SectionSummary({
   section,
   sectionIndex,
+  sectionMetas,
   answers,
   onEdit,
   onValidate,
@@ -21,10 +23,6 @@ export function SectionSummary({
   useEffect(() => {
     headingRef.current?.focus()
   }, [])
-
-  const sectionMetas = QUESTIONNAIRE_FLAT.filter(
-    (q) => q.sectionId === section.id,
-  )
 
   return (
     <section className="mx-auto flex max-w-xl flex-col gap-8 pt-8">

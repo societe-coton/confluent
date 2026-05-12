@@ -1,13 +1,15 @@
 import { Navigate } from 'react-router-dom'
 import { MetricCard } from '@/components/confluent/MetricCard'
 import { useCurrentUser } from '@/features/current-user/context'
-import { MOCK_ADMIN_PIPELINE } from '@/data/mock-admin-pipeline'
+import { getPlatformAnalytics } from '@/features/analytics/api'
+import { useAsync } from '@/lib/useAsync'
 
 export default function AdminRoute() {
   const user = useCurrentUser()
   if (user.role !== 'admin') return <Navigate to="/dashboard" replace />
 
-  const { totalDossiers, activeThisMonth, sectors } = MOCK_ADMIN_PIPELINE
+  const { data, isLoading, error } = useAsync(() => getPlatformAnalytics(), [])
+
   return (
     <>
       <title>Pipeline · Confluent</title>
@@ -18,35 +20,85 @@ export default function AdminRoute() {
         Vue d&apos;ensemble du pipeline régional.
       </p>
 
-      <section className="mt-8">
-        <h2 className="sr-only">Statistiques</h2>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <MetricCard label="Dossiers total" value={totalDossiers.toString()} />
-          <MetricCard label="Actifs ce mois" value={activeThisMonth.toString()} />
-          <MetricCard label="Secteurs représentés" value={sectors.length.toString()} />
-        </div>
-      </section>
+      {isLoading ? (
+        <p className="mt-8 text-sm text-muted-foreground">Chargement…</p>
+      ) : error || !data ? (
+        <p className="mt-8 text-sm text-destructive">
+          Impossible de charger le pipeline.
+        </p>
+      ) : (
+        <>
+          <section className="mt-8">
+            <h2 className="sr-only">Statistiques</h2>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <MetricCard label="Dossiers total" value={data.totalDossiers.toString()} />
+              <MetricCard label="Actifs ce mois" value={data.activeThisMonth.toString()} />
+              <MetricCard
+                label="Vues ce mois"
+                value={data.totalViewsThisMonth.toString()}
+              />
+            </div>
+          </section>
 
-      <section className="mt-8">
-        <h2 className="font-heading text-xl font-semibold text-foreground md:text-2xl">
-          Répartition par secteur
-        </h2>
-        <div className="mt-4 overflow-hidden rounded-lg border border-border bg-card">
-          <ul role="list" className="m-0 list-none divide-y divide-border p-0">
-            {sectors.map((sector) => (
-              <li
-                key={sector.name}
-                className="flex items-center justify-between gap-3 px-4 py-3 text-sm"
-              >
-                <span className="font-medium text-foreground">{sector.name}</span>
-                <span className="text-muted-foreground tabular-nums">
-                  {sector.dossierCount} dossiers
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
+          <section className="mt-8">
+            <h2 className="font-heading text-xl font-semibold text-foreground md:text-2xl">
+              Répartition par secteur
+            </h2>
+            <div className="mt-4 overflow-hidden rounded-lg border border-border bg-card">
+              {data.bySector.length === 0 ? (
+                <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+                  Aucun dossier classifié pour le moment.
+                </p>
+              ) : (
+                <ul role="list" className="m-0 list-none divide-y divide-border p-0">
+                  {data.bySector.map((row) => (
+                    <li
+                      key={row.sector ?? '__null__'}
+                      className="flex items-center justify-between gap-3 px-4 py-3 text-sm"
+                    >
+                      <span className="font-medium text-foreground">
+                        {row.sector ?? 'Non classifié'}
+                      </span>
+                      <span className="text-muted-foreground tabular-nums">
+                        {row.count} dossiers
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </section>
+
+          <section className="mt-8">
+            <h2 className="font-heading text-xl font-semibold text-foreground md:text-2xl">
+              Répartition par maturité
+            </h2>
+            <div className="mt-4 overflow-hidden rounded-lg border border-border bg-card">
+              {data.byMaturityStage.length === 0 ? (
+                <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+                  Aucun dossier classifié pour le moment.
+                </p>
+              ) : (
+                <ul role="list" className="m-0 list-none divide-y divide-border p-0">
+                  {data.byMaturityStage.map((row) => (
+                    <li
+                      key={row.stage ?? '__null__'}
+                      className="flex items-center justify-between gap-3 px-4 py-3 text-sm"
+                    >
+                      <span className="font-medium text-foreground">
+                        {row.stage ?? 'Non classifié'}
+                      </span>
+                      <span className="text-muted-foreground tabular-nums">
+                        {row.count} dossiers
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </section>
+        </>
+      )}
     </>
   )
 }

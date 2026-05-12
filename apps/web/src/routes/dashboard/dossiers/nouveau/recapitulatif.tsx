@@ -1,122 +1,53 @@
-import { useEffect, useRef } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { CircleCheckIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { slugify } from '@/lib/slugify'
-import { TOTAL_QUESTIONS } from '@/data/questionnaire'
-
-const DRAFT_NAME_KEY = 'confluent_draft_name'
-
-function draftKey(name: string) {
-  return `confluent_draft_${name}`
-}
-
-function dossierKey(slug: string) {
-  return `confluent_dossier_${slug}`
-}
-
-function isDraftComplete(dossierName: string): boolean {
-  const rawDraft = localStorage.getItem(draftKey(dossierName))
-  if (!rawDraft) return true
-  try {
-    const parsed = JSON.parse(rawDraft) as { position?: unknown }
-    if (
-      typeof parsed.position !== 'number' ||
-      !Number.isFinite(parsed.position)
-    ) {
-      return false
-    }
-    return parsed.position >= TOTAL_QUESTIONS
-  } catch {
-    return false
-  }
-}
+import { getDossier, submitDossier } from '@/features/dossiers/api'
+import { useAsync } from '@/lib/useAsync'
+import type { ApiError } from '@/lib/api-client'
 
 export default function RecapitulatifRoute() {
-  const dossierName = localStorage.getItem(DRAFT_NAME_KEY)
-  if (!dossierName) {
+  const [searchParams] = useSearchParams()
+  const dossierId = searchParams.get('dossierId')
+  if (!dossierId) {
     return <Navigate to="/dashboard" replace />
   }
-  if (!isDraftComplete(dossierName)) {
-    return (
-      <Navigate to="/dashboard/dossiers/nouveau/questionnaire" replace />
-    )
-  }
-  return <CompletionView dossierName={dossierName} />
+  return <CompletionView dossierId={dossierId} />
 }
 
-function CompletionView({ dossierName }: { dossierName: string }) {
+function CompletionView({ dossierId }: { dossierId: string }) {
   const navigate = useNavigate()
   const headingRef = useRef<HTMLHeadingElement>(null)
-  const slug = slugify(dossierName)
+  const { data: dossier, isLoading, error } = useAsync(() => getDossier(dossierId), [dossierId])
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   useEffect(() => {
     headingRef.current?.focus()
   }, [])
 
-  useEffect(() => {
-    if (!slug) return
-    const rawKey = draftKey(dossierName)
-    const slugKey = dossierKey(slug)
-    const rawRaw = localStorage.getItem(rawKey)
-    if (!rawRaw) return
-    const existingSlug = localStorage.getItem(slugKey)
-    if (existingSlug) {
-      try {
-        const existingDraft = JSON.parse(existingSlug) as { updatedAt?: string }
-        const rawDraft = JSON.parse(rawRaw) as { updatedAt?: string }
-        const a = Date.parse(existingDraft.updatedAt ?? '')
-        const b = Date.parse(rawDraft.updatedAt ?? '')
-        if (Number.isFinite(a) && Number.isFinite(b) && a >= b) {
-          localStorage.removeItem(rawKey)
-          return
-        }
-      } catch {
-        // fall through to overwrite
-      }
+  async function handleViewDossier() {
+    if (!dossier) return
+    setSubmitting(true)
+    setSubmitError(null)
+    try {
+      const submitted = await submitDossier(dossierId)
+      navigate(`/dashboard/dossiers/view/${submitted.slug}`)
+    } catch (err) {
+      const apiErr = err as ApiError
+      setSubmitError(apiErr?.message ?? 'Impossible de finaliser le dossier. Réessayez.')
+      setSubmitting(false)
     }
-    localStorage.setItem(slugKey, rawRaw)
-    localStorage.removeItem(rawKey)
-  }, [dossierName, slug])
-
-  function handleViewDossier() {
-    localStorage.removeItem(DRAFT_NAME_KEY)
-    navigate(`/dashboard/dossiers/view/${slug}`)
   }
 
-  function handleRestart() {
-    localStorage.removeItem(DRAFT_NAME_KEY)
-    localStorage.removeItem(draftKey(dossierName))
-    navigate('/dashboard/dossiers/nouveau')
+  if (isLoading) {
+    return <p className="pt-8 text-sm text-muted-foreground">Chargement…</p>
   }
-
-  if (!slug) {
+  if (error || !dossier) {
     return (
-      <>
-        <title>Nom de dossier invalide · Confluent</title>
-        <section className="mx-auto flex max-w-md flex-col items-center gap-6 pt-16 text-center">
-          <h1
-            ref={headingRef}
-            tabIndex={-1}
-            className="font-heading text-2xl font-semibold text-foreground focus-visible:outline-none"
-          >
-            Nom de dossier invalide
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Le nom «&nbsp;{dossierName}&nbsp;» ne contient ni lettre ni chiffre et
-            ne peut pas servir d&apos;adresse pour votre dossier. Veuillez
-            recommencer avec un autre nom.
-          </p>
-          <Button
-            type="button"
-            size="lg"
-            className="h-11 px-4"
-            onClick={handleRestart}
-          >
-            Recommencer
-          </Button>
-        </section>
-      </>
+      <p className="pt-8 text-sm text-destructive">
+        Impossible de charger le dossier.
+      </p>
     )
   }
 
@@ -137,16 +68,22 @@ function CompletionView({ dossierName }: { dossierName: string }) {
           Dossier complété{' '}!
         </h1>
         <p className="text-sm text-muted-foreground">
-          Votre dossier {dossierName} est prêt. Vous pouvez maintenant le
+          Votre dossier {dossier.name} est prêt. Vous pouvez maintenant le
           consulter et le partager.
         </p>
+        {submitError && (
+          <p className="text-xs text-destructive" role="alert">
+            {submitError}
+          </p>
+        )}
         <Button
           type="button"
           size="lg"
           className="h-11 px-4"
           onClick={handleViewDossier}
+          disabled={submitting}
         >
-          Voir mon dossier
+          {submitting ? 'Finalisation…' : 'Voir mon dossier'}
         </Button>
       </section>
     </>

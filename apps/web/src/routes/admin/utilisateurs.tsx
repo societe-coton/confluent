@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import type { UserRole } from '@confluent/shared'
+import type { User, UserRole } from '@confluent/shared'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,7 +31,14 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { useCurrentUser } from '@/features/current-user/context'
-import { MOCK_USERS, type MockUser, type UserStatus } from '@/data/mock-users'
+import {
+  deactivateUser,
+  inviteUser,
+  listUsers,
+  reactivateUser,
+} from '@/features/admin/users.api'
+import { useAsync } from '@/lib/useAsync'
+import type { ApiError } from '@/lib/api-client'
 import { cn } from '@/lib/utils'
 
 const inviteFormSchema = z.object({
@@ -46,36 +53,36 @@ const inviteFormSchema = z.object({
 type InviteFormValues = z.infer<typeof inviteFormSchema>
 
 export default function AdminUtilisateursRoute() {
-  const user = useCurrentUser()
-  if (user.role !== 'admin') return <Navigate to="/dashboard" replace />
+  const me = useCurrentUser()
+  if (me.role !== 'admin') return <Navigate to="/dashboard" replace />
   return <AdminUtilisateursList />
 }
 
 function AdminUtilisateursList() {
   const headingRef = useRef<HTMLHeadingElement>(null)
-  const [users, setUsers] = useState<MockUser[]>(() => [...MOCK_USERS])
+  const usersQuery = useAsync(() => listUsers(), [])
   const [sheetOpen, setSheetOpen] = useState(false)
-  const [deactivateTarget, setDeactivateTarget] = useState<MockUser | null>(
-    null,
-  )
+  const [deactivateTarget, setDeactivateTarget] = useState<User | null>(null)
 
   useEffect(() => {
     headingRef.current?.focus()
   }, [])
+
+  const users = usersQuery.data ?? []
 
   const {
     register,
     handleSubmit,
     reset,
     setError,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<InviteFormValues>({
     resolver: zodResolver(inviteFormSchema),
     mode: 'onSubmit',
     defaultValues: { email: '', role: 'entrepreneur' },
   })
 
-  const onSubmitInvite = handleSubmit(({ email, role }) => {
+  const onSubmitInvite = handleSubmit(async ({ email, role }) => {
     if (users.some((u) => u.email === email)) {
       setError('email', {
         type: 'duplicate',
@@ -83,16 +90,19 @@ function AdminUtilisateursList() {
       })
       return
     }
-    const newUser: MockUser = {
-      id: `user-invited-${email}`,
-      email,
-      role,
-      status: 'inactive',
+    try {
+      await inviteUser(email, role)
+      setSheetOpen(false)
+      reset()
+      toast.success(`Invitation envoyée à ${email}`)
+      usersQuery.refetch()
+    } catch (err) {
+      const apiErr = err as ApiError
+      setError('email', {
+        type: 'server',
+        message: apiErr?.message ?? "L'invitation a échoué.",
+      })
     }
-    setUsers((prev) => [newUser, ...prev])
-    setSheetOpen(false)
-    reset()
-    toast.success(`Invitation envoyée à ${email}`)
   })
 
   const handleSheetOpenChange = (open: boolean) => {
@@ -100,15 +110,28 @@ function AdminUtilisateursList() {
     if (!open) reset()
   }
 
-  const handleConfirmDeactivate = () => {
+  async function handleConfirmDeactivate() {
     if (!deactivateTarget) return
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === deactivateTarget.id ? { ...u, status: 'inactive' } : u,
-      ),
-    )
-    toast.success('Compte désactivé.')
+    try {
+      await deactivateUser(deactivateTarget.id)
+      toast.success('Compte désactivé.')
+      usersQuery.refetch()
+    } catch (err) {
+      const apiErr = err as ApiError
+      toast.error(apiErr?.message ?? 'Désactivation impossible.')
+    }
     setDeactivateTarget(null)
+  }
+
+  async function handleReactivate(user: User) {
+    try {
+      await reactivateUser(user.id)
+      toast.success('Compte réactivé.')
+      usersQuery.refetch()
+    } catch (err) {
+      const apiErr = err as ApiError
+      toast.error(apiErr?.message ?? 'Réactivation impossible.')
+    }
   }
 
   return (
@@ -137,85 +160,112 @@ function AdminUtilisateursList() {
           Gérez les comptes et les invitations de la plateforme.
         </p>
 
-        <ul
-          role="list"
-          aria-label="Liste des utilisateurs de la plateforme"
-          className="mt-8 flex flex-col gap-3 md:hidden"
-        >
-          {users.map((u) => (
-            <li
-              key={u.id}
-              className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4"
+        {usersQuery.isLoading ? (
+          <p className="mt-8 text-sm text-muted-foreground">Chargement…</p>
+        ) : usersQuery.error ? (
+          <p className="mt-8 text-sm text-destructive">
+            Impossible de charger les utilisateurs.
+          </p>
+        ) : users.length === 0 ? (
+          <p className="mt-8 text-sm text-muted-foreground">
+            Aucun utilisateur pour le moment.
+          </p>
+        ) : (
+          <>
+            <ul
+              role="list"
+              aria-label="Liste des utilisateurs de la plateforme"
+              className="mt-8 flex flex-col gap-3 md:hidden"
             >
-              <span className="break-all text-base font-medium text-foreground">
-                {u.email}
-              </span>
-              <div className="flex items-center gap-2">
-                <UserRoleBadge role={u.role} />
-                <UserStatusIndicator status={u.status} />
-              </div>
-              {u.status === 'active' && u.role !== 'admin' && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="mt-2 self-end"
-                  onClick={() => setDeactivateTarget(u)}
-                >
-                  Désactiver
-                </Button>
-              )}
-            </li>
-          ))}
-        </ul>
-
-        <div className="mt-8 hidden overflow-hidden rounded-lg border border-border bg-card md:block">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-                <th scope="col" className="px-4 py-3 font-medium">
-                  Email
-                </th>
-                <th scope="col" className="px-4 py-3 font-medium">
-                  Rôle
-                </th>
-                <th scope="col" className="px-4 py-3 font-medium">
-                  Statut
-                </th>
-                <th scope="col" className="px-4 py-3 font-medium">
-                  <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
               {users.map((u) => (
-                <tr key={u.id}>
-                  <td className="px-4 py-3 font-medium text-foreground">
+                <li
+                  key={u.id}
+                  className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4"
+                >
+                  <span className="break-all text-base font-medium text-foreground">
                     {u.email}
-                  </td>
-                  <td className="px-4 py-3">
+                  </span>
+                  <div className="flex items-center gap-2">
                     <UserRoleBadge role={u.role} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <UserStatusIndicator status={u.status} />
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    {u.status === 'active' && u.role !== 'admin' && (
+                    <UserStatusIndicator active={u.isActive} />
+                  </div>
+                  {u.role !== 'admin' &&
+                    (u.isActive ? (
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
+                        className="mt-2 self-end"
                         onClick={() => setDeactivateTarget(u)}
                       >
                         Désactiver
                       </Button>
-                    )}
-                  </td>
-                </tr>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 self-end"
+                        onClick={() => handleReactivate(u)}
+                      >
+                        Réactiver
+                      </Button>
+                    ))}
+                </li>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </ul>
+
+            <div className="mt-8 hidden overflow-hidden rounded-lg border border-border bg-card md:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+                    <th scope="col" className="px-4 py-3 font-medium">Email</th>
+                    <th scope="col" className="px-4 py-3 font-medium">Rôle</th>
+                    <th scope="col" className="px-4 py-3 font-medium">Statut</th>
+                    <th scope="col" className="px-4 py-3 font-medium">
+                      <span className="sr-only">Actions</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {users.map((u) => (
+                    <tr key={u.id}>
+                      <td className="px-4 py-3 font-medium text-foreground">{u.email}</td>
+                      <td className="px-4 py-3">
+                        <UserRoleBadge role={u.role} />
+                      </td>
+                      <td className="px-4 py-3">
+                        <UserStatusIndicator active={u.isActive} />
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {u.role !== 'admin' &&
+                          (u.isActive ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setDeactivateTarget(u)}
+                            >
+                              Désactiver
+                            </Button>
+                          ) : (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleReactivate(u)}
+                            >
+                              Réactiver
+                            </Button>
+                          ))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
 
         <SheetContent className="w-[320px] duration-150 sm:max-w-[320px]">
           <SheetHeader>
@@ -281,8 +331,8 @@ function AdminUtilisateursList() {
             </fieldset>
 
             <SheetFooter className="flex-col gap-2 p-4 sm:flex-row-reverse sm:justify-start">
-              <Button type="submit" size="lg">
-                Envoyer l&apos;invitation
+              <Button type="submit" size="lg" disabled={isSubmitting}>
+                {isSubmitting ? 'Envoi…' : "Envoyer l'invitation"}
               </Button>
               <SheetClose
                 render={<Button type="button" variant="outline" size="lg" />}
@@ -305,12 +355,11 @@ function AdminUtilisateursList() {
   )
 }
 
-function UserStatusIndicator({ status }: { status: UserStatus }) {
-  const label = status === 'active' ? 'Actif' : 'Inactif'
-  const dotClass =
-    status === 'active'
-      ? 'bg-[var(--status-active)]'
-      : 'bg-[var(--status-neutral)]'
+function UserStatusIndicator({ active }: { active: boolean }) {
+  const label = active ? 'Actif' : 'Inactif'
+  const dotClass = active
+    ? 'bg-[var(--status-active)]'
+    : 'bg-[var(--status-neutral)]'
   return (
     <span
       aria-label={`Statut : ${label}`}
@@ -346,7 +395,7 @@ function DeactivateUserDialog({
   onOpenChange,
   onConfirm,
 }: {
-  user: MockUser | null
+  user: User | null
   onOpenChange: (open: boolean) => void
   onConfirm: () => void
 }) {

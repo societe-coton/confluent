@@ -1,9 +1,13 @@
 import { useEffect, useRef } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { useCurrentUser } from '@/features/current-user/context'
-import { MOCK_ADMIN_DOSSIERS } from '@/data/mock-admin-dossiers'
+import { listAdminDossiers } from '@/features/admin/dossiers.api'
+import { useAsync } from '@/lib/useAsync'
 import { formatRelativeDate } from '@/lib/relative-date'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+
+const PAGE_SIZE = 20
 
 export default function AdminDossiersRoute() {
   const user = useCurrentUser()
@@ -13,9 +17,31 @@ export default function AdminDossiersRoute() {
 
 function AdminDossiersList() {
   const headingRef = useRef<HTMLHeadingElement>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const page = Math.max(1, Number(searchParams.get('page')) || 1)
+  const { data, isLoading, error } = useAsync(
+    () => listAdminDossiers(page, PAGE_SIZE),
+    [page],
+  )
+
   useEffect(() => {
     headingRef.current?.focus()
   }, [])
+
+  function setPage(next: number) {
+    setSearchParams(
+      (prev) => {
+        if (next <= 1) prev.delete('page')
+        else prev.set('page', String(next))
+        return prev
+      },
+      { replace: false },
+    )
+  }
+
+  const items = data?.items ?? []
+  const total = data?.total ?? 0
+  const totalPages = total === 0 ? 1 : Math.ceil(total / PAGE_SIZE)
 
   return (
     <>
@@ -31,71 +57,122 @@ function AdminDossiersList() {
         Tous les dossiers présents sur la plateforme.
       </p>
 
-      <ul
-        role="list"
-        aria-label="Liste des dossiers de la plateforme"
-        className="mt-8 flex flex-col gap-3 md:hidden"
-      >
-        {MOCK_ADMIN_DOSSIERS.map((d) => (
-          <li key={d.slug} className="flex">
-            <Link
-              to={`/admin/dossiers/${d.slug}`}
-              className="group flex min-h-11 flex-1 flex-col gap-2 rounded-lg border border-border bg-card p-4 text-left transition-colors hover:border-foreground/20 focus-visible:border-foreground/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)]"
-            >
-              <h2 className="min-w-0 break-words text-base font-medium text-foreground">
-                {d.name}
-              </h2>
-              <p className="text-xs text-muted-foreground">{d.entrepreneurEmail}</p>
-              <p className="text-xs text-muted-foreground">{d.sector}</p>
-            </Link>
-          </li>
-        ))}
-      </ul>
-
-      <div className="mt-8 hidden overflow-hidden rounded-lg border border-border bg-card md:block">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-              <th scope="col" className="px-4 py-3 font-medium">Dossier</th>
-              <th scope="col" className="px-4 py-3 font-medium">Entrepreneur</th>
-              <th scope="col" className="px-4 py-3 font-medium">Secteur</th>
-              <th scope="col" className="px-4 py-3 font-medium">Stade</th>
-              <th scope="col" className="px-4 py-3 font-medium">Créé</th>
-              <th scope="col" className="px-4 py-3 font-medium">Accès actifs</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {MOCK_ADMIN_DOSSIERS.map((d) => (
-              <tr
-                key={d.slug}
-                className="relative transition-colors hover:bg-muted/50 focus-within:bg-muted/50"
-              >
-                <td className="px-4 py-3">
-                  <Link
-                    to={`/admin/dossiers/${d.slug}`}
-                    className={cn(
-                      'rounded-sm font-medium text-foreground',
-                      'after:absolute after:inset-0 after:content-[""]',
-                      'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)]',
-                    )}
-                  >
+      {isLoading ? (
+        <p className="mt-8 text-sm text-muted-foreground">Chargement…</p>
+      ) : error ? (
+        <p className="mt-8 text-sm text-destructive">
+          Impossible de charger les dossiers.
+        </p>
+      ) : items.length === 0 ? (
+        <p className="mt-8 text-sm text-muted-foreground">
+          Aucun dossier pour le moment.
+        </p>
+      ) : (
+        <>
+          <ul
+            role="list"
+            aria-label="Liste des dossiers de la plateforme"
+            className="mt-8 flex flex-col gap-3 md:hidden"
+          >
+            {items.map((d) => (
+              <li key={d.id} className="flex">
+                <Link
+                  to={`/admin/dossiers/${d.slug}`}
+                  className="group flex min-h-11 flex-1 flex-col gap-2 rounded-lg border border-border bg-card p-4 text-left transition-colors hover:border-foreground/20 focus-visible:border-foreground/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)]"
+                >
+                  <h2 className="min-w-0 break-words text-base font-medium text-foreground">
                     {d.name}
-                  </Link>
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">{d.entrepreneurEmail}</td>
-                <td className="px-4 py-3 text-muted-foreground">{d.sector}</td>
-                <td className="px-4 py-3 text-muted-foreground">{d.maturity}</td>
-                <td className="px-4 py-3 text-muted-foreground">
-                  {formatRelativeDate(d.createdAt)}
-                </td>
-                <td className="px-4 py-3 tabular-nums text-muted-foreground">
-                  {d.activeShareLinksCount}
-                </td>
-              </tr>
+                  </h2>
+                  <p className="text-xs text-muted-foreground">{d.ownerEmail}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {d.sector ?? 'Non classifié'}
+                  </p>
+                </Link>
+              </li>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </ul>
+
+          <div className="mt-8 hidden overflow-hidden rounded-lg border border-border bg-card md:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+                  <th scope="col" className="px-4 py-3 font-medium">Dossier</th>
+                  <th scope="col" className="px-4 py-3 font-medium">Entrepreneur</th>
+                  <th scope="col" className="px-4 py-3 font-medium">Secteur</th>
+                  <th scope="col" className="px-4 py-3 font-medium">Stade</th>
+                  <th scope="col" className="px-4 py-3 font-medium">Créé</th>
+                  <th scope="col" className="px-4 py-3 font-medium">Accès actifs</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {items.map((d) => (
+                  <tr
+                    key={d.id}
+                    className="relative transition-colors hover:bg-muted/50 focus-within:bg-muted/50"
+                  >
+                    <td className="px-4 py-3">
+                      <Link
+                        to={`/admin/dossiers/${d.slug}`}
+                        className={cn(
+                          'rounded-sm font-medium text-foreground',
+                          'after:absolute after:inset-0 after:content-[""]',
+                          'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)]',
+                        )}
+                      >
+                        {d.name}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">{d.ownerEmail}</td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {d.sector ?? '—'}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {d.maturityStage ?? '—'}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {formatRelativeDate(d.createdAt)}
+                    </td>
+                    <td className="px-4 py-3 tabular-nums text-muted-foreground">
+                      {d.activeShareLinksCount}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {totalPages > 1 && (
+            <nav
+              aria-label="Pagination des dossiers"
+              className="mt-6 flex items-center justify-between gap-3 text-sm text-muted-foreground"
+            >
+              <span>
+                Page {page} sur {totalPages} · {total} dossier{total > 1 ? 's' : ''}
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(page - 1)}
+                  disabled={page <= 1}
+                >
+                  Précédent
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(page + 1)}
+                  disabled={page >= totalPages}
+                >
+                  Suivant
+                </Button>
+              </div>
+            </nav>
+          )}
+        </>
+      )}
     </>
   )
 }

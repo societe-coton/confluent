@@ -8,7 +8,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import type { AccessEntry } from '@/data/mock-analytics'
+import type { AccessEntry } from '@/features/shares/access-entry'
 
 export interface RevokeAccessDialogProps {
   open: boolean

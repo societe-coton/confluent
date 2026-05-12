@@ -3,19 +3,20 @@ import { useNavigate } from 'react-router-dom'
 import { WizardInput } from '@/components/confluent/WizardInput'
 import { Button } from '@/components/ui/button'
 import { stripNonPrintable } from '@/lib/sanitize'
+import { createDossier } from '@/features/dossiers/api'
+import type { ApiError } from '@/lib/api-client'
 
-const DRAFT_NAME_KEY = 'confluent_draft_name'
 const NAME_MAX_LENGTH = 120
 
 export default function DossierNewRoute() {
   const navigate = useNavigate()
   const inputRef = useRef<HTMLInputElement>(null)
-  const [name, setName] = useState(
-    () => localStorage.getItem(DRAFT_NAME_KEY) ?? '',
-  )
+  const [name, setName] = useState('')
   const [showError, setShowError] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const cleaned = stripNonPrintable(name).trim()
     if (!cleaned) {
@@ -23,8 +24,18 @@ export default function DossierNewRoute() {
       inputRef.current?.focus()
       return
     }
-    localStorage.setItem(DRAFT_NAME_KEY, cleaned)
-    navigate('/dashboard/dossiers/nouveau/questionnaire')
+    setIsSubmitting(true)
+    setErrorMessage(null)
+    try {
+      const dossier = await createDossier({ name: cleaned })
+      navigate(
+        `/dashboard/dossiers/nouveau/questionnaire?dossierId=${encodeURIComponent(dossier.id)}`,
+      )
+    } catch (err) {
+      const apiErr = err as ApiError
+      setErrorMessage(apiErr?.message ?? 'Impossible de créer le dossier. Réessayez.')
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -64,12 +75,20 @@ export default function DossierNewRoute() {
               Le nom du projet est requis.
             </p>
           )}
+          {errorMessage && (
+            <p className="text-xs text-destructive">{errorMessage}</p>
+          )}
         </div>
         <p className="text-sm text-muted-foreground">
           Vous pourrez modifier ce nom plus tard.
         </p>
-        <Button type="submit" size="lg" className="h-11 self-start px-4">
-          Commencer →
+        <Button
+          type="submit"
+          size="lg"
+          className="h-11 self-start px-4"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? 'Création…' : 'Commencer →'}
         </Button>
       </form>
     </>

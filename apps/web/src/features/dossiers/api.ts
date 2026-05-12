@@ -1,12 +1,18 @@
-import type { Dossier } from '@confluent/shared'
+import type { ActiveQuestionnaire, Dossier } from '@confluent/shared'
 import { apiRequest } from '@/lib/api-client'
+
+export interface DossierWithQuestionnaire extends Dossier {
+  questionnaireVersion: ActiveQuestionnaire | null
+}
 
 export function listDossiers(): Promise<Dossier[]> {
   return apiRequest<Dossier[]>('/v1/dossiers')
 }
 
-export function getDossier(id: string): Promise<Dossier> {
-  return apiRequest<Dossier>(`/v1/dossiers/${encodeURIComponent(id)}`)
+export function getDossier(id: string): Promise<DossierWithQuestionnaire> {
+  return apiRequest<DossierWithQuestionnaire>(
+    `/v1/dossiers/${encodeURIComponent(id)}`,
+  )
 }
 
 export function createDossier(input: { name: string }): Promise<Dossier> {

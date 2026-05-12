@@ -1,7 +1,7 @@
-import type { AccessStatus } from '@/data/mock-analytics'
+import type { AccessStatus } from '@/features/shares/access-entry'
 import { cn } from '@/lib/utils'
 
-export type { AccessStatus as StatusValue } from '@/data/mock-analytics'
+export type { AccessStatus as StatusValue } from '@/features/shares/access-entry'
 
 const STATUS_COPY: Record<AccessStatus, { label: string; dotClass: string }> = {
   active: { label: 'Actif', dotClass: 'bg-[var(--status-active)]' },

@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
+import { useState } from 'react'
 import { StatusDot } from '@/components/confluent/StatusDot'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,7 +15,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import type { AccessEntry } from '@/data/mock-analytics'
+import type { AccessEntry } from '@/features/shares/access-entry'
 
 const shareFormSchema = z.object({
   email: z
@@ -28,13 +29,14 @@ type ShareFormValues = z.infer<typeof shareFormSchema>
 
 export interface SharePanelProps {
   existingEntries: readonly AccessEntry[]
-  onSubmitInvitation: (email: string) => void
+  onSubmitInvitation: (email: string) => Promise<void>
 }
 
 export function SharePanel({
   existingEntries,
   onSubmitInvitation,
 }: SharePanelProps) {
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const {
     register,
     handleSubmit,
@@ -47,16 +49,31 @@ export function SharePanel({
     defaultValues: { email: '' },
   })
 
-  const onSubmit = handleSubmit(({ email }) => {
-    if (existingEntries.some((entry) => entry.email === email)) {
+  const onSubmit = handleSubmit(async ({ email }) => {
+    if (
+      existingEntries.some(
+        (entry) => entry.email === email && entry.status !== 'revoked',
+      )
+    ) {
       setError('email', {
         type: 'duplicate',
         message: 'Cette adresse est déjà invitée.',
       })
       return
     }
-    onSubmitInvitation(email)
-    reset()
+    setIsSubmitting(true)
+    try {
+      await onSubmitInvitation(email)
+      reset()
+    } catch (err) {
+      const message =
+        typeof err === 'object' && err !== null && 'message' in err
+          ? String((err as { message: unknown }).message)
+          : "L'invitation a échoué. Réessayez."
+      setError('email', { type: 'server', message })
+    } finally {
+      setIsSubmitting(false)
+    }
   })
 
   return (
@@ -99,8 +116,8 @@ export function SharePanel({
         </div>
 
         <SheetFooter className="flex-col gap-2 p-4 sm:flex-row-reverse sm:justify-start">
-          <Button type="submit" size="lg">
-            Envoyer l&apos;invitation
+          <Button type="submit" size="lg" disabled={isSubmitting}>
+            {isSubmitting ? 'Envoi…' : "Envoyer l'invitation"}
           </Button>
           <SheetClose
             render={<Button type="button" variant="outline" size="lg" />}

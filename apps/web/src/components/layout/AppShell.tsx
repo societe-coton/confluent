@@ -1,6 +1,9 @@
-import { Outlet } from 'react-router-dom'
+import { Outlet, useNavigate } from 'react-router-dom'
 import { Separator } from '@/components/ui/separator'
+import { Button } from '@/components/ui/button'
 import { useCurrentUser } from '@/features/current-user/context'
+import { logout } from '@/features/auth/api'
+import { setAuth } from '@/features/auth/auth-store'
 import { Breadcrumbs } from './Breadcrumbs'
 import { NavItem } from './NavItem'
 import { VersionBadge } from './VersionBadge'
@@ -18,7 +21,15 @@ function SkipLink() {
   )
 }
 
-function DesktopSidebar({ user, navItems }: { user: CurrentUser; navItems: NavItemSpec[] }) {
+function DesktopSidebar({
+  user,
+  navItems,
+  onLogout,
+}: {
+  user: CurrentUser
+  navItems: NavItemSpec[]
+  onLogout: () => void
+}) {
   return (
     <aside className="hidden w-60 shrink-0 flex-col bg-sidebar lg:flex">
       <div className="px-4 py-6 text-lg font-heading font-medium text-sidebar-foreground">
@@ -51,6 +62,15 @@ function DesktopSidebar({ user, navItems }: { user: CurrentUser; navItems: NavIt
         >
           {user.email}
         </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="mt-3 w-full"
+          onClick={onLogout}
+        >
+          Se déconnecter
+        </Button>
       </div>
       <VersionBadge />
     </aside>
@@ -114,12 +134,23 @@ function MobileBottomNav({ navItems }: { navItems: NavItemSpec[] }) {
 
 export function AppShell() {
   const user = useCurrentUser()
+  const navigate = useNavigate()
   const navItems = user.role === 'admin' ? ADMIN_NAV_ITEMS : NAV_ITEMS
+
+  async function handleLogout() {
+    try {
+      await logout()
+    } catch {
+      // ignore — clear local state regardless
+    }
+    setAuth(null)
+    navigate('/auth', { replace: true })
+  }
 
   return (
     <div className="flex min-h-screen bg-background">
       <SkipLink />
-      <DesktopSidebar user={user} navItems={navItems} />
+      <DesktopSidebar user={user} navItems={navItems} onLogout={handleLogout} />
       <TabletRail user={user} navItems={navItems} />
       <main
         id="main-content"

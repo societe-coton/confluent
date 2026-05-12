@@ -6,9 +6,9 @@ import { formatRelativeDate } from '@/lib/relative-date'
 export interface DossierCardProps {
   slug: string
   name: string
-  sector: string
-  maturity: string
-  activeShareLinksCount: number
+  sector: string | null
+  maturity: string | null
+  activeShareLinksCount?: number
   createdAt: string
   className?: string
 }
@@ -28,8 +28,19 @@ export function DossierCard({
   className,
 }: DossierCardProps) {
   const relativeCreatedAt = formatRelativeDate(createdAt)
-  const accessLabel = formatAccessLabel(activeShareLinksCount)
-  const ariaLabel = `${name}, secteur ${sector}, stade ${maturity}, ${accessLabel}, créé ${relativeCreatedAt}`
+  const accessLabel =
+    activeShareLinksCount === undefined ? null : formatAccessLabel(activeShareLinksCount)
+  const sectorLabel = sector ?? 'Secteur non classifié'
+  const maturityLabel = maturity ?? 'À soumettre'
+  const ariaLabel = [
+    name,
+    `secteur ${sectorLabel}`,
+    `stade ${maturityLabel}`,
+    accessLabel,
+    `créé ${relativeCreatedAt}`,
+  ]
+    .filter(Boolean)
+    .join(', ')
   return (
     <Link
       to={`/dashboard/dossiers/view/${slug}`}
@@ -46,13 +57,17 @@ export function DossierCard({
           {name}
         </h3>
         <Badge variant="secondary" className="shrink-0">
-          {maturity}
+          {maturityLabel}
         </Badge>
       </div>
-      <p className="text-xs text-muted-foreground">{sector}</p>
+      <p className="text-xs text-muted-foreground">{sectorLabel}</p>
       <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-        <span>{accessLabel}</span>
-        <span aria-hidden="true">·</span>
+        {accessLabel && (
+          <>
+            <span>{accessLabel}</span>
+            <span aria-hidden="true">·</span>
+          </>
+        )}
         <span>{`Créé ${relativeCreatedAt}`}</span>
       </div>
     </Link>

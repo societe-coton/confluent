@@ -6,7 +6,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import type { AccessEntry } from '@/data/mock-analytics'
+import type { AccessEntry } from '@/features/shares/access-entry'
 import { cn } from '@/lib/utils'
 
 function formatRevokedTime(iso: string): string {

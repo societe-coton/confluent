@@ -4,12 +4,12 @@ import { Button } from '@/components/ui/button'
 import { DossierCard } from '@/components/confluent/DossierCard'
 import { EmptyState } from '@/components/confluent/EmptyState'
 import { EmptyDossiersIllustration } from '@/components/confluent/illustrations/EmptyDossiersIllustration'
-import { MOCK_DOSSIERS } from '@/data/mock-dossiers'
+import { useDossiers } from '@/features/dossiers/hooks'
 
 export default function DashboardRoute() {
   const navigate = useNavigate()
   const headingRef = useRef<HTMLHeadingElement>(null)
-  const dossiers = MOCK_DOSSIERS
+  const { data: dossiers, isLoading, error } = useDossiers()
 
   useEffect(() => {
     headingRef.current?.focus()
@@ -18,6 +18,8 @@ export default function DashboardRoute() {
   function goToNew() {
     navigate('/dashboard/dossiers/nouveau')
   }
+
+  const list = dossiers ?? []
 
   return (
     <>
@@ -39,20 +41,25 @@ export default function DashboardRoute() {
           Créer un dossier
         </Button>
       </div>
-      {dossiers.length > 0 ? (
+      {isLoading ? (
+        <p className="mt-8 text-sm text-muted-foreground">Chargement…</p>
+      ) : error ? (
+        <p className="mt-8 text-sm text-destructive">
+          Impossible de charger vos dossiers. Réessayez plus tard.
+        </p>
+      ) : list.length > 0 ? (
         <ul
           role="list"
           aria-label="Liste de vos dossiers"
           className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
         >
-          {dossiers.map((d) => (
-            <li key={d.slug} className="flex">
+          {list.map((d) => (
+            <li key={d.id} className="flex">
               <DossierCard
                 slug={d.slug}
                 name={d.name}
                 sector={d.sector}
-                maturity={d.maturity}
-                activeShareLinksCount={d.activeShareLinksCount}
+                maturity={d.maturityStage}
                 createdAt={d.createdAt}
                 className="flex-1"
               />

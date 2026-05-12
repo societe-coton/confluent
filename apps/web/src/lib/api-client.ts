@@ -25,7 +25,10 @@ async function parseError(res: Response): Promise<ApiError> {
 
 async function doFetch(path: string, init: RequestInit, withAuth: boolean): Promise<Response> {
   const headers = new Headers(init.headers)
-  if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
+  const isFormData = typeof FormData !== 'undefined' && init.body instanceof FormData
+  if (init.body && !isFormData && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json')
+  }
   if (withAuth) {
     const { accessToken } = getAuthState()
     if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
