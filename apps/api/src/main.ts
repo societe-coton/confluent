@@ -66,7 +66,7 @@ function setupSwagger(
         '`POST /v1/auth/refresh`). Les routes `/v1/admin/*` exigent un JWT `role: admin`. ' +
         'La route financeur `GET /v1/shares/:token` est publique, protégée par un UUID non-devinable.',
     )
-    .setVersion('0.0.1')
+    .setVersion(process.env.APP_VERSION ?? 'dev')
     .addBearerAuth(
       {
         type: 'http',

@@ -3,6 +3,7 @@ import { Separator } from '@/components/ui/separator'
 import { useCurrentUser } from '@/features/current-user/context'
 import { Breadcrumbs } from './Breadcrumbs'
 import { NavItem } from './NavItem'
+import { VersionBadge } from './VersionBadge'
 import { ADMIN_NAV_ITEMS, NAV_ITEMS, type NavItemSpec } from './nav-items'
 import type { CurrentUser } from '@confluent/shared'
 
@@ -51,6 +52,7 @@ function DesktopSidebar({ user, navItems }: { user: CurrentUser; navItems: NavIt
           {user.email}
         </div>
       </div>
+      <VersionBadge />
     </aside>
   )
 }

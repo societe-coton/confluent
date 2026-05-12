@@ -12,6 +12,9 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [tailwindcss(), react()],
+    define: {
+      'import.meta.env.VITE_APP_VERSION': JSON.stringify(process.env.APP_VERSION ?? 'dev'),
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),

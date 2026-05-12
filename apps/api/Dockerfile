@@ -1,10 +1,13 @@
 # Multi-stage production image for @confluent/api.
 # Context expected: repository root (monorepo).
 #
-# Build:   docker build -f apps/api/Dockerfile -t confluent-api:<tag> .
-# Layers:  deps  → install monorepo deps (cached)
-#          build → compile shared + generate prisma client + nest build
+# Build:   docker build -f apps/api/Dockerfile --target prod \
+#            --build-arg DOPPLER_TOKEN=<token> --build-arg APP_VERSION=<x.y.z> \
+#            -t confluent-api:<tag> .
+# Layers:  deps    → install monorepo deps (cached)
+#          build   → compile shared + generate prisma client + nest build
 #          runtime → minimal final image (alpine + dist + prisma client)
+#          prod    → runtime + doppler CLI, version bake, doppler-wrapped entrypoint
 
 FROM node:24-alpine AS deps
 RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
@@ -40,3 +43,13 @@ COPY --from=build /repo/apps/api/prisma/ apps/api/prisma/
 COPY --from=build /repo/apps/api/package.json apps/api/
 EXPOSE 3000
 CMD ["node", "apps/api/dist/main.js"]
+
+FROM runtime AS prod
+ARG DOPPLER_TOKEN
+ARG APP_VERSION
+ENV DOPPLER_TOKEN=${DOPPLER_TOKEN}
+ENV APP_VERSION=${APP_VERSION}
+RUN apk add --no-cache curl gnupg \
+ && curl -Ls --tlsv1.2 --proto "=https" --retry 3 https://cli.doppler.com/install.sh | sh \
+ && apk del curl gnupg
+CMD ["sh", "-c", "doppler run -- node apps/api/dist/main.js"]

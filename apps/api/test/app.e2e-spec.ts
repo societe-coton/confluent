@@ -35,7 +35,7 @@ describe('AppController (e2e)', () => {
     return request(app.getHttpServer())
       .get('/')
       .expect(200)
-      .expect({ status: 'ok', service: 'confluent-api', version: '0.0.1' })
+      .expect({ status: 'ok', service: 'confluent-api', version: 'dev' })
   })
 
   afterEach(async () => {

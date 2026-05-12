@@ -134,6 +134,6 @@ describe('AuthController (e2e)', () => {
 
   it('GET / — health is public and still reachable without auth', async () => {
     const res = await request(app.getHttpServer()).get('/').expect(200)
-    expect(res.body).toEqual({ status: 'ok', service: 'confluent-api', version: '0.0.1' })
+    expect(res.body).toEqual({ status: 'ok', service: 'confluent-api', version: 'dev' })
   })
 })

@@ -8,6 +8,8 @@ interface HealthResponse {
   version: string
 }
 
+const APP_VERSION = process.env.APP_VERSION ?? 'dev'
+
 @ApiTags('Santé')
 @Controller()
 export class AppController {
@@ -22,10 +24,10 @@ export class AppController {
   @ApiOkResponse({
     description: 'Service UP',
     schema: {
-      example: { status: 'ok', service: 'confluent-api', version: '0.0.1' },
+      example: { status: 'ok', service: 'confluent-api', version: '1.0.0' },
     },
   })
   getHealth(): HealthResponse {
-    return { status: 'ok', service: 'confluent-api', version: '0.0.1' }
+    return { status: 'ok', service: 'confluent-api', version: APP_VERSION }
   }
 }
