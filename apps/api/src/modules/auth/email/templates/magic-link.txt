@@ -1,0 +1,9 @@
+{{brandLabel}}
+
+{{title}}
+
+{{body}}
+
+{{cta}} : {{magicLinkUrl}}
+
+{{footer}}

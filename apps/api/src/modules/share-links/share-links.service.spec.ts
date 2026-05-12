@@ -13,7 +13,10 @@ function buildModule(overrides: {
   shareFindUnique?: jest.Mock
   shareUpdate?: jest.Mock
   shareFindMany?: jest.Mock
-  sendMail?: jest.Mock
+  userFindUnique?: jest.Mock
+  userCreate?: jest.Mock
+  sendShareInvite?: jest.Mock
+  sendMagicLink?: jest.Mock
   auditRecord?: jest.Mock
 }) {
   return {
@@ -25,6 +28,16 @@ function buildModule(overrides: {
         findMany: overrides.shareFindMany ?? jest.fn().mockResolvedValue([]),
       },
       dossier: { findUnique: jest.fn() },
+      user: {
+        findUnique: overrides.userFindUnique ?? jest.fn().mockResolvedValue(null),
+        create:
+          overrides.userCreate ??
+          jest
+            .fn()
+            .mockImplementation(async (args: { data: Record<string, unknown> }) =>
+              Promise.resolve({ id: 'recipient-1', locale: 'fr', ...args.data }),
+            ),
+      },
     },
     audit: { record: overrides.auditRecord ?? jest.fn().mockResolvedValue(undefined) },
     config: {
@@ -39,7 +52,10 @@ function buildModule(overrides: {
         overrides.getByIdForUser ??
         jest.fn().mockResolvedValue({ id: 'd-1', userId: 'u-1', name: 'Biosensio' }),
     },
-    email: { sendMail: overrides.sendMail ?? jest.fn().mockResolvedValue(undefined) },
+    email: {
+      sendMagicLink: overrides.sendMagicLink ?? jest.fn().mockResolvedValue(undefined),
+      sendShareInvite: overrides.sendShareInvite ?? jest.fn().mockResolvedValue(undefined),
+    },
   }
 }
 
@@ -75,9 +91,79 @@ describe('ShareLinksService', () => {
     })
     expect(result.shareUrl).toMatch(/^https:\/\/app\.confluent\/share\/[0-9a-f-]{36}$/)
     expect(mocks.audit.record).toHaveBeenCalledWith(
-      expect.objectContaining({ actionType: 'share_link_created', dossierId: 'd-1' }),
+      expect.objectContaining({
+        actionType: 'share_link_created',
+        dossierId: 'd-1',
+        metadata: expect.objectContaining({
+          recipientUserId: 'recipient-1',
+          createdNewUser: true,
+        }),
+      }),
     )
-    expect(mocks.email.sendMail).toHaveBeenCalledTimes(1)
+    expect(mocks.email.sendShareInvite).toHaveBeenCalledTimes(1)
+    expect(mocks.email.sendShareInvite).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'bob@invest.fr',
+        dossierName: 'Biosensio',
+        locale: 'fr',
+      }),
+    )
+  })
+
+  it('upserts the recipient as a financeur user when unknown', async () => {
+    const userCreate = jest.fn().mockResolvedValue({
+      id: 'new-user',
+      email: 'bob@invest.fr',
+      role: 'financeur',
+      isActive: true,
+      emailVerifiedAt: null,
+      locale: 'fr',
+    })
+    const mocks = buildModule({
+      userFindUnique: jest.fn().mockResolvedValue(null),
+      userCreate,
+    })
+    const svc = await instantiate(mocks)
+
+    await svc.create({ dossierId: 'd-1', userId: 'u-1', recipientEmail: 'bob@invest.fr' })
+
+    expect(userCreate).toHaveBeenCalledWith({
+      data: {
+        email: 'bob@invest.fr',
+        role: 'financeur',
+        isActive: true,
+        emailVerifiedAt: null,
+      },
+    })
+  })
+
+  it('does not create the user when recipient already exists', async () => {
+    const existing = {
+      id: 'existing-1',
+      email: 'lea@fund.io',
+      role: 'admin',
+      isActive: false,
+      emailVerifiedAt: null,
+      locale: 'fr',
+    }
+    const userCreate = jest.fn()
+    const mocks = buildModule({
+      userFindUnique: jest.fn().mockResolvedValue(existing),
+      userCreate,
+    })
+    const svc = await instantiate(mocks)
+
+    await svc.create({ dossierId: 'd-1', userId: 'u-1', recipientEmail: 'lea@fund.io' })
+
+    expect(userCreate).not.toHaveBeenCalled()
+    expect(mocks.audit.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          recipientUserId: 'existing-1',
+          createdNewUser: false,
+        }),
+      }),
+    )
   })
 
   it('revoke sets status + revokedAt and audits share_link_revoked', async () => {

@@ -12,18 +12,22 @@ import { REFRESH_COOKIE_NAME } from './../src/modules/auth/auth.constants'
 
 describe('AuthController (e2e)', () => {
   let app: INestApplication<App>
-  let sendMail: jest.Mock
+  let sendMagicLink: jest.Mock
   let findUnique: jest.Mock
+  let userUpdate: jest.Mock
   let tokenFindUnique: jest.Mock
   let tokenUpdate: jest.Mock
   let tokenCreate: jest.Mock
+  let auditCreate: jest.Mock
 
   beforeEach(async () => {
-    sendMail = jest.fn().mockResolvedValue(undefined)
+    sendMagicLink = jest.fn().mockResolvedValue(undefined)
     findUnique = jest.fn()
+    userUpdate = jest.fn().mockResolvedValue({})
     tokenFindUnique = jest.fn()
     tokenUpdate = jest.fn().mockResolvedValue({})
     tokenCreate = jest.fn().mockResolvedValue({})
+    auditCreate = jest.fn().mockResolvedValue({})
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
@@ -31,15 +35,16 @@ describe('AuthController (e2e)', () => {
       .useValue({
         onModuleInit: async () => {},
         onModuleDestroy: async () => {},
-        user: { findUnique },
+        user: { findUnique, update: userUpdate },
         magicLinkToken: {
           create: tokenCreate,
           findUnique: tokenFindUnique,
           update: tokenUpdate,
         },
+        auditLog: { create: auditCreate },
       })
       .overrideProvider(EMAIL_TRANSPORT)
-      .useValue({ sendMail })
+      .useValue({ sendMagicLink, sendShareInvite: jest.fn() })
       .compile()
 
     app = moduleFixture.createNestApplication()
@@ -61,7 +66,7 @@ describe('AuthController (e2e)', () => {
       .send({ email: 'sophie@biosensio.fr' })
       .expect(200)
     expect(res.body).toEqual({ message: 'Magic link sent.' })
-    expect(sendMail).toHaveBeenCalledTimes(1)
+    expect(sendMagicLink).toHaveBeenCalledTimes(1)
   })
 
   it('POST /v1/auth/magic-link — unknown user: 200 + no email', async () => {
@@ -71,7 +76,7 @@ describe('AuthController (e2e)', () => {
       .send({ email: 'unknown@example.com' })
       .expect(200)
     expect(res.body).toEqual({ message: 'Magic link sent.' })
-    expect(sendMail).not.toHaveBeenCalled()
+    expect(sendMagicLink).not.toHaveBeenCalled()
   })
 
   it('POST /v1/auth/magic-link — invalid email body: 400 VALIDATION_ERROR', async () => {
@@ -87,7 +92,12 @@ describe('AuthController (e2e)', () => {
       id: 'mlt-1',
       expiresAt: new Date(Date.now() + 60_000),
       consumedAt: null,
-      user: { id: 'u1', email: 'sophie@biosensio.fr', role: 'entrepreneur' },
+      user: {
+        id: 'u1',
+        email: 'sophie@biosensio.fr',
+        role: 'entrepreneur',
+        emailVerifiedAt: new Date(),
+      },
     })
     const res = await request(app.getHttpServer())
       .get('/v1/auth/verify')
@@ -108,7 +118,12 @@ describe('AuthController (e2e)', () => {
       id: 'mlt-2',
       expiresAt: new Date(Date.now() - 60_000),
       consumedAt: null,
-      user: { id: 'u1', email: 'sophie@biosensio.fr', role: 'entrepreneur' },
+      user: {
+        id: 'u1',
+        email: 'sophie@biosensio.fr',
+        role: 'entrepreneur',
+        emailVerifiedAt: new Date(),
+      },
     })
     const res = await request(app.getHttpServer())
       .get('/v1/auth/verify')

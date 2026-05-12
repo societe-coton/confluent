@@ -4,19 +4,26 @@ import { JwtService } from '@nestjs/jwt'
 import { UnauthorizedException } from '@nestjs/common'
 import { AuthService } from './auth.service'
 import { PrismaService } from '../../prisma/prisma.service'
+import { AuditService } from '../audit/audit.service'
 import { EMAIL_TRANSPORT, type EmailTransport } from './email/email-transport'
 
 function buildModule(overrides?: {
   findUnique?: jest.Mock
+  userUpdate?: jest.Mock
   tokenFindUnique?: jest.Mock
   tokenUpdate?: jest.Mock
-  sendMail?: jest.Mock
+  sendMagicLink?: jest.Mock
+  sendShareInvite?: jest.Mock
   signAsync?: jest.Mock
   verifyAsync?: jest.Mock
+  auditRecord?: jest.Mock
   configValues?: Record<string, string>
 }) {
   const prismaMock = {
-    user: { findUnique: overrides?.findUnique ?? jest.fn().mockResolvedValue(null) },
+    user: {
+      findUnique: overrides?.findUnique ?? jest.fn().mockResolvedValue(null),
+      update: overrides?.userUpdate ?? jest.fn().mockResolvedValue({}),
+    },
     magicLinkToken: {
       create: jest.fn().mockResolvedValue({}),
       findUnique: overrides?.tokenFindUnique ?? jest.fn().mockResolvedValue(null),
@@ -24,7 +31,11 @@ function buildModule(overrides?: {
     },
   }
   const emailMock: EmailTransport = {
-    sendMail: overrides?.sendMail ?? jest.fn().mockResolvedValue(undefined),
+    sendMagicLink: overrides?.sendMagicLink ?? jest.fn().mockResolvedValue(undefined),
+    sendShareInvite: overrides?.sendShareInvite ?? jest.fn().mockResolvedValue(undefined),
+  }
+  const auditMock = {
+    record: overrides?.auditRecord ?? jest.fn().mockResolvedValue(undefined),
   }
   const values: Record<string, string> = {
     FRONTEND_URL: 'http://localhost:5173',
@@ -39,7 +50,7 @@ function buildModule(overrides?: {
     signAsync: overrides?.signAsync ?? jest.fn().mockResolvedValue('signed.jwt.token'),
     verifyAsync: overrides?.verifyAsync ?? jest.fn(),
   }
-  return { prismaMock, emailMock, configMock, jwtMock }
+  return { prismaMock, emailMock, configMock, jwtMock, auditMock }
 }
 
 async function instantiate(mocks: ReturnType<typeof buildModule>): Promise<AuthService> {
@@ -50,6 +61,7 @@ async function instantiate(mocks: ReturnType<typeof buildModule>): Promise<AuthS
       { provide: ConfigService, useValue: mocks.configMock },
       { provide: JwtService, useValue: mocks.jwtMock },
       { provide: EMAIL_TRANSPORT, useValue: mocks.emailMock },
+      { provide: AuditService, useValue: mocks.auditMock },
     ],
   }).compile()
   return moduleRef.get(AuthService)
@@ -57,7 +69,7 @@ async function instantiate(mocks: ReturnType<typeof buildModule>): Promise<AuthS
 
 describe('AuthService.requestMagicLink', () => {
   it('writes a token row and sends an email when the user exists', async () => {
-    const user = { id: 'user-1', email: 'sophie@biosensio.fr' }
+    const user = { id: 'user-1', email: 'sophie@biosensio.fr', locale: 'fr' }
     const mocks = buildModule({ findUnique: jest.fn().mockResolvedValue(user) })
     const service = await instantiate(mocks)
 
@@ -76,21 +88,17 @@ describe('AuthService.requestMagicLink', () => {
     expect(deltaMs).toBeGreaterThan(14 * 60 * 1000)
     expect(deltaMs).toBeLessThanOrEqual(15 * 60 * 1000 + 2000)
 
-    expect(mocks.emailMock.sendMail).toHaveBeenCalledTimes(1)
-    const mailArg = (mocks.emailMock.sendMail as jest.Mock).mock.calls[0][0] as {
+    expect(mocks.emailMock.sendMagicLink).toHaveBeenCalledTimes(1)
+    const sendArg = (mocks.emailMock.sendMagicLink as jest.Mock).mock.calls[0][0] as {
       to: string
-      text: string
-      html: string
-      subject: string
-      from: string
+      magicLinkUrl: string
+      locale: string
     }
-    expect(mailArg.to).toBe('sophie@biosensio.fr')
-    expect(mailArg.from).toBe('noreply@confluent.local')
-    expect(mailArg.subject).toBe('Votre lien de connexion Confluent')
-    expect(mailArg.text).toContain(
+    expect(sendArg.to).toBe('sophie@biosensio.fr')
+    expect(sendArg.locale).toBe('fr')
+    expect(sendArg.magicLinkUrl).toBe(
       `http://localhost:5173/auth/verify?token=${createArg.data.token}`,
     )
-    expect(mailArg.html).toContain(createArg.data.token)
   })
 
   it('silently no-ops when the user does not exist', async () => {
@@ -100,14 +108,14 @@ describe('AuthService.requestMagicLink', () => {
     await service.requestMagicLink('unknown@example.com')
 
     expect(mocks.prismaMock.magicLinkToken.create).not.toHaveBeenCalled()
-    expect(mocks.emailMock.sendMail).not.toHaveBeenCalled()
+    expect(mocks.emailMock.sendMagicLink).not.toHaveBeenCalled()
   })
 
   it('does not rethrow when the email transport fails', async () => {
-    const user = { id: 'user-1', email: 'sophie@biosensio.fr' }
+    const user = { id: 'user-1', email: 'sophie@biosensio.fr', locale: 'fr' }
     const mocks = buildModule({
       findUnique: jest.fn().mockResolvedValue(user),
-      sendMail: jest.fn().mockRejectedValue(new Error('smtp down')),
+      sendMagicLink: jest.fn().mockRejectedValue(new Error('smtp down')),
     })
     const service = await instantiate(mocks)
 
@@ -132,7 +140,12 @@ describe('AuthService.verifyMagicLink', () => {
     id: 'mlt-1',
     expiresAt: new Date(Date.now() + 60_000),
     consumedAt: null,
-    user: { id: 'user-1', email: 'sophie@biosensio.fr', role: 'entrepreneur' as const },
+    user: {
+      id: 'user-1',
+      email: 'sophie@biosensio.fr',
+      role: 'entrepreneur' as const,
+      emailVerifiedAt: new Date('2026-01-01T00:00:00Z'),
+    },
   }
 
   it('consumes the token and returns an issued session for a valid token', async () => {
@@ -154,6 +167,49 @@ describe('AuthService.verifyMagicLink', () => {
       id: 'user-1',
       email: 'sophie@biosensio.fr',
       role: 'entrepreneur',
+    })
+  })
+
+  it('sets emailVerifiedAt when the user had not verified before', async () => {
+    const mocks = buildModule({
+      tokenFindUnique: jest.fn().mockResolvedValue({
+        ...validTokenRow,
+        user: { ...validTokenRow.user, emailVerifiedAt: null },
+      }),
+    })
+    const service = await instantiate(mocks)
+
+    await service.verifyMagicLink('first-time')
+
+    expect(mocks.prismaMock.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-1' },
+      data: { emailVerifiedAt: expect.any(Date) },
+    })
+  })
+
+  it('does not touch emailVerifiedAt for a user already verified', async () => {
+    const mocks = buildModule({
+      tokenFindUnique: jest.fn().mockResolvedValue(validTokenRow),
+    })
+    const service = await instantiate(mocks)
+
+    await service.verifyMagicLink('repeat')
+
+    expect(mocks.prismaMock.user.update).not.toHaveBeenCalled()
+  })
+
+  it('records a magic_link_consumed audit event', async () => {
+    const mocks = buildModule({
+      tokenFindUnique: jest.fn().mockResolvedValue(validTokenRow),
+    })
+    const service = await instantiate(mocks)
+
+    await service.verifyMagicLink('ok')
+
+    expect(mocks.auditMock.record).toHaveBeenCalledWith({
+      actionType: 'magic_link_consumed',
+      actorId: 'user-1',
+      metadata: { tokenId: 'mlt-1' },
     })
   })
 
@@ -206,9 +262,28 @@ describe('AuthService.refreshSession', () => {
   it('rejects when the underlying user is missing or inactive', async () => {
     const mocks = buildModule({
       verifyAsync: jest.fn().mockResolvedValue({ sub: 'user-1', tokenVersion: 0 }),
-      findUnique: jest
-        .fn()
-        .mockResolvedValue({ id: 'user-1', isActive: false, email: 'x', role: 'entrepreneur' }),
+      findUnique: jest.fn().mockResolvedValue({
+        id: 'user-1',
+        isActive: false,
+        email: 'x',
+        role: 'entrepreneur',
+        emailVerifiedAt: new Date(),
+      }),
+    })
+    const service = await instantiate(mocks)
+    await expect(service.refreshSession('ok.refresh')).rejects.toBeInstanceOf(UnauthorizedException)
+  })
+
+  it('rejects when emailVerifiedAt is null (never-verified user)', async () => {
+    const mocks = buildModule({
+      verifyAsync: jest.fn().mockResolvedValue({ sub: 'user-1', tokenVersion: 0 }),
+      findUnique: jest.fn().mockResolvedValue({
+        id: 'user-1',
+        isActive: true,
+        email: 'pending@example.com',
+        role: 'financeur',
+        emailVerifiedAt: null,
+      }),
     })
     const service = await instantiate(mocks)
     await expect(service.refreshSession('ok.refresh')).rejects.toBeInstanceOf(UnauthorizedException)
@@ -222,6 +297,7 @@ describe('AuthService.refreshSession', () => {
         isActive: true,
         email: 'sophie@biosensio.fr',
         role: 'entrepreneur',
+        emailVerifiedAt: new Date(),
       }),
     })
     const service = await instantiate(mocks)

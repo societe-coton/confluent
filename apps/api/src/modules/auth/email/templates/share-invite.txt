@@ -1,0 +1,11 @@
+{{brandLabel}}
+
+{{title}}
+
+{{body}}
+
+  {{dossierName}}
+
+{{cta}} : {{shareUrl}}
+
+{{footer}}

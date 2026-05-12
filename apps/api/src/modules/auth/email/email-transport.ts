@@ -1,13 +1,21 @@
 export const EMAIL_TRANSPORT = Symbol('EMAIL_TRANSPORT')
 
-export interface MailPayload {
+export type Locale = 'fr'
+
+export interface SendMagicLinkInput {
   to: string
-  subject: string
-  text: string
-  html: string
-  from: string
+  magicLinkUrl: string
+  locale: Locale
+}
+
+export interface SendShareInviteInput {
+  to: string
+  dossierName: string
+  shareUrl: string
+  locale: Locale
 }
 
 export interface EmailTransport {
-  sendMail(payload: MailPayload): Promise<void>
+  sendMagicLink(input: SendMagicLinkInput): Promise<void>
+  sendShareInvite(input: SendShareInviteInput): Promise<void>
 }

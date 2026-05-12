@@ -58,32 +58,51 @@ export class ShareLinksService {
     recipientEmail: string
   }): Promise<ShareLink & { shareUrl: string }> {
     const dossier = await this.dossiers.getByIdForUser(params.dossierId, params.userId)
+    const recipientEmail = params.recipientEmail.trim().toLowerCase()
+
+    const existingRecipient = await this.prisma.user.findUnique({
+      where: { email: recipientEmail },
+    })
+    const recipient =
+      existingRecipient ??
+      (await this.prisma.user.create({
+        data: {
+          email: recipientEmail,
+          role: 'financeur',
+          isActive: true,
+          emailVerifiedAt: null,
+        },
+      }))
+    const createdNewUser = existingRecipient === null
+
     const token = randomUUID()
     const link = await this.prisma.shareLink.create({
       data: {
         dossierId: dossier.id,
-        recipientEmail: params.recipientEmail,
+        recipientEmail,
         token,
         status: 'active',
       },
     })
     const frontendUrl = this.config.get('FRONTEND_URL', { infer: true })
-    const from = this.config.get('SMTP_FROM', { infer: true })
     const shareUrl = `${frontendUrl}/share/${token}`
     await this.audit.record({
       actionType: 'share_link_created',
       shareLinkId: link.id,
       dossierId: dossier.id,
       actorId: params.userId,
-      metadata: { recipientEmail: params.recipientEmail },
+      metadata: {
+        recipientEmail,
+        recipientUserId: recipient.id,
+        createdNewUser,
+      },
     })
     try {
-      await this.email.sendMail({
-        to: params.recipientEmail,
-        from,
-        subject: `Un accès à ${dossier.name} vous a été partagé`,
-        text: `Bonjour,\n\nVous avez reçu un accès au dossier « ${dossier.name} ». Ouvrez le lien suivant pour le consulter : ${shareUrl}`,
-        html: `<p>Bonjour,</p><p>Vous avez reçu un accès au dossier <strong>${dossier.name}</strong>.</p><p><a href="${shareUrl}">Consulter le dossier</a></p>`,
+      await this.email.sendShareInvite({
+        to: recipientEmail,
+        dossierName: dossier.name,
+        shareUrl,
+        locale: (recipient.locale as 'fr') ?? 'fr',
       })
     } catch {
       // best-effort — audit already recorded

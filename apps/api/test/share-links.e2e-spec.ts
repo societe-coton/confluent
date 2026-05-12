@@ -34,7 +34,7 @@ describe('ShareLinksController (e2e)', () => {
         auditLog: { create: jest.fn() },
       })
       .overrideProvider(EMAIL_TRANSPORT)
-      .useValue({ sendMail: jest.fn() })
+      .useValue({ sendMagicLink: jest.fn(), sendShareInvite: jest.fn() })
       .overrideProvider(AuditService)
       .useValue({ record: auditRecord })
       .compile()

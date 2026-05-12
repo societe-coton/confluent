@@ -1,0 +1,24 @@
+{
+  "magic-link": {
+    "lang": "fr",
+    "subject": "Votre lien de connexion Confluent",
+    "preheader": "Votre lien de connexion Confluent (valide 15 minutes).",
+    "brandLabel": "Confluent",
+    "title": "Votre lien de connexion",
+    "body": "Cliquez sur le bouton ci-dessous pour vous connecter. Ce lien est valable pendant 15 minutes et ne peut être utilisé qu'une seule fois.",
+    "cta": "Se connecter",
+    "fallbackLabel": "Si le bouton ne fonctionne pas, copiez-collez ce lien dans votre navigateur :",
+    "footer": "Si vous n'êtes pas à l'origine de cette demande, ignorez ce message — votre compte reste sécurisé."
+  },
+  "share-invite": {
+    "lang": "fr",
+    "subject": "Un dossier vous est partagé sur Confluent",
+    "preheader": "Un entrepreneur partage un dossier avec vous.",
+    "brandLabel": "Confluent",
+    "title": "Un dossier vous est partagé",
+    "body": "Un entrepreneur souhaite vous donner accès au dossier suivant :",
+    "cta": "Consulter le dossier",
+    "fallbackLabel": "Si le bouton ne fonctionne pas, copiez-collez ce lien dans votre navigateur :",
+    "footer": "Ce lien donne un accès en lecture seule. Il peut être révoqué à tout moment par l'entrepreneur."
+  }
+}

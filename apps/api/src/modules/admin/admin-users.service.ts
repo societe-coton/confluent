@@ -24,7 +24,7 @@ export class AdminUsersService {
   async invite(input: InviteUserInput, actorId: string): Promise<User> {
     const email = input.email.trim().toLowerCase()
     const existing = await this.prisma.user.findUnique({ where: { email } })
-    if (existing && existing.isActive) {
+    if (existing && existing.isActive && existing.emailVerifiedAt !== null) {
       throw new ConflictException({
         code: 'USER_ALREADY_ACTIVE',
         message: 'User already active.',
@@ -33,13 +33,13 @@ export class AdminUsersService {
     const user = existing
       ? await this.prisma.user.update({
           where: { id: existing.id },
-          data: { role: input.role },
+          data: { role: input.role, isActive: true },
         })
       : await this.prisma.user.create({
-          data: { email, role: input.role, isActive: false },
+          data: { email, role: input.role, isActive: true, emailVerifiedAt: null },
         })
     await this.audit.record({
-      actionType: 'user_reactivated', // invite-on-existing vs new
+      actionType: 'user_reactivated',
       actorId,
       metadata: { email, role: input.role, userId: user.id, kind: 'invite' },
     })

@@ -3,6 +3,12 @@
   "collection": "@nestjs/schematics",
   "sourceRoot": "src",
   "compilerOptions": {
-    "deleteOutDir": false
+    "deleteOutDir": false,
+    "assets": [
+      { "include": "modules/auth/email/templates/**/*.html", "outDir": "dist", "watchAssets": true },
+      { "include": "modules/auth/email/templates/**/*.txt", "outDir": "dist", "watchAssets": true },
+      { "include": "modules/auth/email/templates/**/*.json", "outDir": "dist", "watchAssets": true },
+      { "include": "modules/auth/email/templates/**/*.md", "outDir": "dist", "watchAssets": true }
+    ]
   }
 }

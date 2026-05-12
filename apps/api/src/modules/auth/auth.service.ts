@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config'
 import { JwtService } from '@nestjs/jwt'
 import type { AppConfig } from '../../config/config.schema'
 import { PrismaService } from '../../prisma/prisma.service'
+import { AuditService } from '../audit/audit.service'
 import { ACCESS_TOKEN_TTL_SECONDS, REFRESH_TOKEN_TTL_SECONDS } from './auth.constants'
 import { EMAIL_TRANSPORT, type EmailTransport } from './email/email-transport'
 import type { JwtPayload } from './strategies/jwt.strategy'
@@ -30,6 +31,7 @@ export class AuthService {
     private readonly config: ConfigService<AppConfig, true>,
     private readonly jwt: JwtService,
     @Inject(EMAIL_TRANSPORT) private readonly email: EmailTransport,
+    private readonly audit: AuditService,
   ) {}
 
   async requestMagicLink(rawEmail: string): Promise<void> {
@@ -47,18 +49,14 @@ export class AuthService {
     })
 
     const frontendUrl = this.config.get('FRONTEND_URL', { infer: true })
-    const from = this.config.get('SMTP_FROM', { infer: true })
     const verifyUrl = `${frontendUrl}/auth/verify?token=${token}`
-    const subject = 'Votre lien de connexion Confluent'
-    const text =
-      `Bonjour,\n\nVoici votre lien de connexion (valide 15 minutes) :\n${verifyUrl}\n\n` +
-      `Si vous n'êtes pas à l'origine de cette demande, ignorez ce message.`
-    const html =
-      `<p>Bonjour,</p><p>Voici votre <a href="${verifyUrl}">lien de connexion</a> ` +
-      `(valide 15 minutes).</p><p>Si vous n'êtes pas à l'origine de cette demande, ignorez ce message.</p>`
 
     try {
-      await this.email.sendMail({ to: email, from, subject, text, html })
+      await this.email.sendMagicLink({
+        to: email,
+        magicLinkUrl: verifyUrl,
+        locale: (user.locale as 'fr') ?? 'fr',
+      })
     } catch (err) {
       this.logger.warn(
         `Magic link email dispatch failed for user ${user.id}: ` +
@@ -83,6 +81,19 @@ export class AuthService {
     await this.prisma.magicLinkToken.update({
       where: { id: record.id },
       data: { consumedAt: new Date() },
+    })
+
+    if (record.user.emailVerifiedAt === null) {
+      await this.prisma.user.update({
+        where: { id: record.user.id },
+        data: { emailVerifiedAt: new Date() },
+      })
+    }
+
+    await this.audit.record({
+      actionType: 'magic_link_consumed',
+      actorId: record.user.id,
+      metadata: { tokenId: record.id },
     })
 
     return this.issueSession({
@@ -112,7 +123,7 @@ export class AuthService {
     }
 
     const user = await this.prisma.user.findUnique({ where: { id: payload.sub } })
-    if (!user || !user.isActive) {
+    if (!user || !user.isActive || user.emailVerifiedAt === null) {
       throw new UnauthorizedException({
         code: 'INVALID_TOKEN',
         message: 'Token expired or invalid.',
