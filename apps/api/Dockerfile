@@ -29,7 +29,8 @@ RUN pnpm --filter @confluent/api exec prisma generate --schema=./prisma/schema.p
 RUN pnpm --filter @confluent/api build
 
 FROM node:24-alpine AS runtime
-RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
+RUN corepack enable && corepack prepare pnpm@10.33.0 --activate \
+ && apk add --no-cache openssl
 WORKDIR /repo
 ENV NODE_ENV=production
 # Monorepo metadata (needed for `pnpm --filter` + workspace resolution at runtime).
