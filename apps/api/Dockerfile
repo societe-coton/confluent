@@ -21,6 +21,7 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 
 FROM deps AS build
 WORKDIR /repo
+COPY tsconfig.json ./
 COPY packages/shared/ packages/shared/
 COPY apps/api/ apps/api/
 RUN pnpm --filter @confluent/shared build

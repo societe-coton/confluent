@@ -22,6 +22,7 @@ ARG APP_VERSION
 ENV DOPPLER_TOKEN=${DOPPLER_TOKEN}
 ENV APP_VERSION=${APP_VERSION}
 WORKDIR /repo
+COPY tsconfig.json ./
 COPY packages/shared/ packages/shared/
 COPY apps/web/ apps/web/
 RUN pnpm --filter @confluent/shared build
