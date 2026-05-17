@@ -14,7 +14,7 @@ const MAGIC_LINK_TTL_MS = 15 * 60 * 1000
 export interface IssuedSession {
   accessToken: string
   refreshToken: string
-  user: { id: string; email: string; role: JwtPayload['role'] }
+  user: { id: string; email: string; role: JwtPayload['role']; firstName: string | null; lastName: string | null }
 }
 
 interface RefreshPayload {
@@ -100,6 +100,8 @@ export class AuthService {
       id: record.user.id,
       email: record.user.email,
       role: record.user.role,
+      firstName: record.user.firstName,
+      lastName: record.user.lastName,
     })
   }
 
@@ -129,13 +131,23 @@ export class AuthService {
         message: 'Token expired or invalid.',
       })
     }
-    return this.issueSession({ id: user.id, email: user.email, role: user.role })
+    return this.issueSession({ id: user.id, email: user.email, role: user.role, firstName: user.firstName, lastName: user.lastName })
+  }
+
+  async updateProfile(userId: string, firstName: string, lastName: string): Promise<{ firstName: string; lastName: string }> {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { firstName: firstName.trim(), lastName: lastName.trim() },
+    })
+    return { firstName: user.firstName!, lastName: user.lastName! }
   }
 
   private async issueSession(user: {
     id: string
     email: string
     role: JwtPayload['role']
+    firstName: string | null
+    lastName: string | null
   }): Promise<IssuedSession> {
     const accessToken = await this.jwt.signAsync(
       { sub: user.id, email: user.email, role: user.role } satisfies JwtPayload,
@@ -151,6 +163,6 @@ export class AuthService {
         expiresIn: REFRESH_TOKEN_TTL_SECONDS,
       },
     )
-    return { accessToken, refreshToken, user }
+    return { accessToken, refreshToken, user: { id: user.id, email: user.email, role: user.role, firstName: user.firstName, lastName: user.lastName } }
   }
 }

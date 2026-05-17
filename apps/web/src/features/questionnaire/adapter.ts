@@ -27,6 +27,7 @@ export function buildDynamicQuestionnaire(qz: ActiveQuestionnaire): DynamicQuest
     questions: grouped.get(title)!.map((f) => ({
       id: f.id,
       label: f.label,
+      options: f.options && f.options.length > 0 ? f.options : undefined,
     })),
   }))
   const flat: QuestionMeta[] = []

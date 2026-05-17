@@ -53,7 +53,7 @@ export class DossiersController {
   })
   @ApiOkResponse({ description: 'Liste des dossiers de l’user.' })
   list(@Req() req: Request): Promise<Dossier[]> {
-    return this.service.listForUser(currentUser(req).id)
+    return this.service.listForUser(currentUser(req))
   }
 
   @Get(':id')
@@ -68,7 +68,7 @@ export class DossiersController {
   @ApiOkResponse({ description: 'Dossier + snapshot de la version questionnaire.' })
   @ApiNotFoundResponse({ description: 'Dossier inexistant ou possédé par un autre user.' })
   getOne(@Req() req: Request, @Param('id') id: string) {
-    return this.service.getWithQuestionnaire(id, currentUser(req).id)
+    return this.service.getWithQuestionnaire(id, currentUser(req))
   }
 
   @Patch(':id')

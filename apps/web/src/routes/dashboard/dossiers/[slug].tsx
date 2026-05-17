@@ -1,15 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetTrigger } from '@/components/ui/sheet'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog'
 import { AccessListRow } from '@/components/confluent/AccessListRow'
 import { DossierField } from '@/components/confluent/DossierField'
 import { MetricCard } from '@/components/confluent/MetricCard'
 import { RevokeAccessDialog } from '@/components/confluent/RevokeAccessDialog'
 import { SharePanel } from '@/components/confluent/SharePanel'
-import { getDossier, listDossiers } from '@/features/dossiers/api'
+import { getDossier, listDossiers, deleteDossier } from '@/features/dossiers/api'
 import { listAnswers } from '@/features/dossiers/answers.api'
 import { listShares, createShare, revokeShare } from '@/features/shares/api'
 import { getAnalytics } from '@/features/analytics/api'
@@ -18,6 +28,7 @@ import type { AccessEntry } from '@/features/shares/access-entry'
 import { useAsync } from '@/lib/useAsync'
 import { buildDynamicQuestionnaire } from '@/features/questionnaire/adapter'
 import type { ApiError } from '@/lib/api-client'
+import { useCurrentUser } from '@/features/current-user/context'
 
 const TAB_VALUES = {
   content: 'content',
@@ -42,6 +53,7 @@ export default function DossierViewRoute() {
 }
 
 function DossierBySlug({ slug }: { slug: string }) {
+  const currentUser = useCurrentUser()
   const dossiersQuery = useAsync(() => listDossiers(), [])
   const dossier = dossiersQuery.data?.find((d) => d.slug === slug)
 
@@ -58,7 +70,9 @@ function DossierBySlug({ slug }: { slug: string }) {
   if (!dossier) {
     return <NotFound />
   }
-  return <DossierView dossierId={dossier.id} slug={dossier.slug} fallbackName={dossier.name} />
+  const isOwner = dossier.userId === currentUser.id
+  const isDraft = !dossier.submittedAt
+  return <DossierView dossierId={dossier.id} slug={dossier.slug} fallbackName={dossier.name} isOwner={isOwner} isDraft={isDraft} />
 }
 
 function NotFound() {
@@ -79,21 +93,34 @@ function NotFound() {
 function DossierView({
   dossierId,
   fallbackName,
+  isOwner,
+  isDraft,
 }: {
   dossierId: string
   slug: string
   fallbackName: string
+  isOwner: boolean
+  isDraft: boolean
 }) {
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const headingRef = useRef<HTMLHeadingElement>(null)
   const [shareOpen, setShareOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const [entryToRevoke, setEntryToRevoke] = useState<AccessEntry | null>(null)
   const revokingRef = useRef(false)
+  const deletingRef = useRef(false)
 
   const dossierQuery = useAsync(() => getDossier(dossierId), [dossierId])
   const answersQuery = useAsync(() => listAnswers(dossierId), [dossierId])
-  const sharesQuery = useAsync(() => listShares(dossierId), [dossierId])
-  const analyticsQuery = useAsync(() => getAnalytics(dossierId), [dossierId])
+  const sharesQuery = useAsync(
+    () => isOwner ? listShares(dossierId) : Promise.resolve([]),
+    [dossierId, isOwner],
+  )
+  const analyticsQuery = useAsync(
+    () => isOwner ? getAnalytics(dossierId) : Promise.resolve(undefined),
+    [dossierId, isOwner],
+  )
 
   useEffect(() => {
     headingRef.current?.focus()
@@ -126,9 +153,9 @@ function DossierView({
   }
 
   const handleInvitationSubmit = useCallback(
-    async (email: string) => {
+    async (email: string, accessLevel: 'public' | 'partiel' | 'complet' = 'complet') => {
       try {
-        await createShare(dossierId, email)
+        await createShare(dossierId, email, accessLevel)
         toast.success(`Invitation envoyée à ${email}`)
         setShareOpen(false)
         sharesQuery.refetch()
@@ -143,6 +170,18 @@ function DossierView({
   function handleRevokeClick(entry: AccessEntry) {
     revokingRef.current = false
     setEntryToRevoke(entry)
+  }
+
+  async function handleConfirmDelete() {
+    if (deletingRef.current) return
+    deletingRef.current = true
+    try {
+      await deleteDossier(dossierId)
+      navigate('/dashboard')
+    } catch {
+      toast.error('Suppression impossible. Réessayez plus tard.')
+      deletingRef.current = false
+    }
   }
 
   async function handleConfirmRevoke(entry: AccessEntry) {
@@ -202,31 +241,55 @@ function DossierView({
         >
           {displayName}
         </h1>
-        <Sheet open={shareOpen} onOpenChange={setShareOpen}>
-          <SheetTrigger
-            render={
-              <Button
-                type="button"
-                size="lg"
-                className="h-11 self-start px-4 sm:self-auto"
-              >
-                Partager
-              </Button>
-            }
-          />
-          <SharePanel
-            existingEntries={accessEntries}
-            onSubmitInvitation={handleInvitationSubmit}
-          />
-        </Sheet>
+        {isOwner && isDraft ? (
+          <div className="flex gap-2 self-start sm:self-auto">
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="h-11 px-4"
+              onClick={() => setDeleteOpen(true)}
+            >
+              Supprimer
+            </Button>
+            <Button
+              type="button"
+              size="lg"
+              className="h-11 px-4"
+              onClick={() => navigate(`/dashboard/dossiers/nouveau/questionnaire?dossierId=${dossierId}`)}
+            >
+              Reprendre le questionnaire
+            </Button>
+          </div>
+        ) : isOwner ? (
+          <Sheet open={shareOpen} onOpenChange={setShareOpen}>
+            <SheetTrigger
+              render={
+                <Button
+                  type="button"
+                  size="lg"
+                  className="h-11 self-start px-4 sm:self-auto"
+                >
+                  Partager
+                </Button>
+              }
+            />
+            <SharePanel
+              existingEntries={accessEntries}
+              onSubmitInvitation={handleInvitationSubmit}
+            />
+          </Sheet>
+        ) : null}
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="mt-6">
         <TabsList>
           <TabsTrigger value={TAB_VALUES.content}>Contenu</TabsTrigger>
-          <TabsTrigger value={TAB_VALUES.analytics}>
-            Accès &amp; analytics
-          </TabsTrigger>
+          {isOwner && (
+            <TabsTrigger value={TAB_VALUES.analytics}>
+              Accès &amp; analytics
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value={TAB_VALUES.content}>
@@ -318,6 +381,23 @@ function DossierView({
         }}
         onConfirm={handleConfirmRevoke}
       />
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer ce dossier ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action est irréversible. Le dossier, ses réponses et ses partages seront définitivement supprimés.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete}>
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

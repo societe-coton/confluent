@@ -1,11 +1,13 @@
-# Production stack — postgres + api. The api-migrate service is a one-shot job
+# Production stack — postgres + api + web. The api-migrate service is a one-shot job
 # that applies Prisma migrations before the api container(s) start, ensuring
 # zero race conditions on multi-replica deploys.
 #
 # Required env vars (from .env or CI secrets):
-#   API_IMAGE                 — image tag, e.g. ghcr.io/org/confluent-api:sha-abc
+#   API_IMAGE                 — image tag, e.g. ghcr.io/org/confluent-api:production-latest
+#   WEB_IMAGE                 — image tag, e.g. ghcr.io/org/confluent-web:production-latest
 #   DATABASE_URL              — full Postgres connection string
 #   POSTGRES_USER / _PASSWORD / _DB — used by the postgres service only
+#   WEB_PORT                  — host port for the web container (default: 80)
 #   + all the keys validated by apps/api/src/config/config.schema.ts
 services:
   postgres:
@@ -30,6 +32,17 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    restart: 'no'
+
+  api-seed-v2:
+    image: ${API_IMAGE}
+    command: ['pnpm', '--filter', '@confluent/api', 'questionnaire:v2']
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+    depends_on:
+      api-migrate:
+        condition: service_completed_successfully
+    profiles: ['seed']
     restart: 'no'
 
   api:
@@ -60,6 +73,12 @@ services:
     restart: unless-stopped
     ports:
       - '${PORT:-3000}:3000'
+
+  web:
+    image: ${WEB_IMAGE}
+    restart: unless-stopped
+    ports:
+      - '${WEB_PORT:-80}:80'
 
 volumes:
   postgres_data:

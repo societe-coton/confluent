@@ -1,6 +1,7 @@
 import type { FormEvent, KeyboardEvent } from 'react'
 import { WizardInput } from '@/components/confluent/WizardInput'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { stripNonPrintable } from '@/lib/sanitize'
 import type { QuestionMeta } from '@/data/questionnaire'
 
@@ -27,6 +28,7 @@ export function QuestionnaireStep({
   canGoBack,
   returnToSummary,
 }: QuestionnaireStepProps) {
+  const hasOptions = question.options && question.options.length > 0
   const cleaned = stripNonPrintable(value).trim()
   const canAdvance = cleaned.length > 0
   const headingId = 'questionnaire-current-question'
@@ -55,6 +57,11 @@ export function QuestionnaireStep({
     onAdvance(cleaned)
   }
 
+  function handleOptionClick(option: string) {
+    onChange(option)
+    onAdvance(option)
+  }
+
   return (
     <form
       onSubmit={handleSubmit}
@@ -74,15 +81,37 @@ export function QuestionnaireStep({
         <p className="text-sm text-muted-foreground">{question.hint}</p>
       )}
 
-      <WizardInput
-        key={question.id}
-        autoFocus
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={handleKeyDown}
-        aria-labelledby={headingId}
-        maxLength={ANSWER_MAX_LENGTH}
-      />
+      {hasOptions ? (
+        <div className="flex flex-col gap-2">
+          {question.options!.map((option) => (
+            <button
+              key={option}
+              type="button"
+              onClick={() => handleOptionClick(option)}
+              className={cn(
+                'rounded-lg border px-4 py-3 text-left text-sm transition-colors',
+                'hover:border-foreground/40 hover:bg-muted/50',
+                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)]',
+                value === option
+                  ? 'border-foreground bg-foreground text-background'
+                  : 'border-border bg-card text-foreground',
+              )}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <WizardInput
+          key={question.id}
+          autoFocus
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={handleKeyDown}
+          aria-labelledby={headingId}
+          maxLength={ANSWER_MAX_LENGTH}
+        />
+      )}
 
       {returnToSummary && (
         <button
@@ -94,22 +123,24 @@ export function QuestionnaireStep({
         </button>
       )}
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Button
-          type="submit"
-          size="lg"
-          className="h-11 px-4"
-          disabled={!canAdvance}
-        >
-          OK <span aria-hidden="true">→</span>
-        </Button>
-        <span
-          className="text-xs text-muted-foreground"
-          aria-hidden="true"
-        >
-          ou Entrée ↵
-        </span>
-      </div>
+      {!hasOptions && (
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            type="submit"
+            size="lg"
+            className="h-11 px-4"
+            disabled={!canAdvance}
+          >
+            OK <span aria-hidden="true">→</span>
+          </Button>
+          <span
+            className="text-xs text-muted-foreground"
+            aria-hidden="true"
+          >
+            ou Entrée ↵
+          </span>
+        </div>
+      )}
 
       <div className="pt-2">
         <Button

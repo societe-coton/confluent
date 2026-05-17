@@ -6,7 +6,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import type { AccessEntry } from '@/features/shares/access-entry'
+import type { AccessEntry, AccessLevel } from '@/features/shares/access-entry'
 import { cn } from '@/lib/utils'
 
 function formatRevokedTime(iso: string): string {
@@ -14,6 +14,26 @@ function formatRevokedTime(iso: string): string {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+const LEVEL_STYLES: Record<AccessLevel, { label: string; className: string }> = {
+  public: { label: 'Public', className: 'bg-amber-50 text-amber-700 border-amber-200' },
+  partiel: { label: 'Partiel', className: 'bg-blue-50 text-blue-700 border-blue-200' },
+  complet: { label: 'Complet', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+}
+
+function AccessLevelBadge({ level }: { level: AccessLevel }) {
+  const style = LEVEL_STYLES[level] ?? LEVEL_STYLES.complet
+  return (
+    <span
+      className={cn(
+        'shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium',
+        style.className,
+      )}
+    >
+      {style.label}
+    </span>
+  )
 }
 
 export interface AccessListRowProps {
@@ -57,6 +77,7 @@ export function AccessListRow({
             {entry.lastSeen}
           </p>
         </div>
+        <AccessLevelBadge level={entry.accessLevel} />
       </div>
 
       <div className="flex items-center justify-between gap-4 sm:justify-end">

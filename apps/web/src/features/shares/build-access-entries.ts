@@ -40,6 +40,7 @@ export function buildAccessEntries(
       initials: deriveInitials(s.recipientEmail),
       lastSeen,
       sessionDuration: '—',
+      accessLevel: (s.accessLevel ?? 'complet') as 'public' | 'partiel' | 'complet',
     }
     if (s.status === 'revoked') {
       const revokedIso = s.revokedAt ?? new Date().toISOString()

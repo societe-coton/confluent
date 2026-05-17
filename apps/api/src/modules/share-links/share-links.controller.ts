@@ -93,10 +93,12 @@ export class ShareLinksController {
     @Param('id') id: string,
     @Body() body: CreateShareLinkDto,
   ): Promise<ShareLink & { shareUrl: string }> {
+    const { accessLevel } = body as { recipientEmail: string; accessLevel?: string }
     return this.service.create({
       dossierId: id,
       userId: currentUser(req).id,
       recipientEmail: body.recipientEmail,
+      accessLevel,
     })
   }
 

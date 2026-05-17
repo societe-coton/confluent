@@ -3,6 +3,6 @@ import { publicApiRequest } from '@/lib/api-client'
 
 export function getSharedDossier(token: string): Promise<FinanceurShareResponse> {
   return publicApiRequest<FinanceurShareResponse>(
-    `/shares/${encodeURIComponent(token)}`,
+    `/v1/shares/${encodeURIComponent(token)}`,
   )
 }

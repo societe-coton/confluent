@@ -25,6 +25,7 @@ Les logs préfixés `[api]` / `[web]` apparaissent dans le même terminal. Pour 
 
 ## Documentation
 
+- [docs/development.md](docs/development.md) — **Environnement de développement** (services, email, tokens, dépannage, bootstrap admin).
 - [docs/database-migrations.md](docs/database-migrations.md) — **Base de données & migrations Prisma** (workflow dev, workflow prod, règles inviolables).
 - [docs/api-documentation.md](docs/api-documentation.md) — **Swagger / OpenAPI** (UI : http://localhost:3000/api/docs).
 - [_bmad-output/planning-artifacts/architecture.md](_bmad-output/planning-artifacts/architecture.md) — architecture globale.

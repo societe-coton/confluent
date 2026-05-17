@@ -24,6 +24,7 @@ export const questionnaireFieldSchema = z.object({
   section: z.string(),
   label: z.string(),
   fieldType: fieldTypeSchema,
+  options: z.array(z.string()).default([]),
   required: z.boolean(),
   orderIndex: z.number().int().nonnegative(),
 })

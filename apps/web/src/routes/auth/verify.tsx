@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { LoaderCircleIcon } from 'lucide-react'
 import { ConfluentWordmark } from '@/components/confluent/ConfluentWordmark'
@@ -11,31 +11,27 @@ export default function AuthVerifyRoute() {
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const [status, setStatus] = useState<Status>('pending')
+  const started = useRef(false)
 
   useEffect(() => {
-    let cancelled = false
+    // useRef survives StrictMode's double-mount; prevents consuming the token twice
+    if (started.current) return
+    started.current = true
+
     const token = params.get('token')
     if (!token) {
-      queueMicrotask(() => {
-        if (!cancelled) setStatus('error')
-      })
-      return () => {
-        cancelled = true
-      }
+      setStatus('error')
+      return
     }
     void (async () => {
       try {
         const user = await verifyMagicLink(token)
-        if (cancelled) return
         const target = user.role === 'admin' ? '/admin' : '/dashboard'
         navigate(target, { replace: true })
       } catch {
-        if (!cancelled) setStatus('error')
+        setStatus('error')
       }
     })()
-    return () => {
-      cancelled = true
-    }
   }, [params, navigate])
 
   return (

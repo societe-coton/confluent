@@ -43,7 +43,7 @@ export class AnswersController {
   })
   @ApiOkResponse({ description: 'Liste des réponses.' })
   async list(@Req() req: Request, @Param('dossierId') dossierId: string): Promise<DossierAnswer[]> {
-    await this.dossiers.getByIdForUser(dossierId, currentUser(req).id)
+    await this.dossiers.assertReadAccess(dossierId, currentUser(req))
     return this.answers.listForDossier(dossierId)
   }
 

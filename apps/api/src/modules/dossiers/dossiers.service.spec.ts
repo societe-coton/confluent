@@ -99,14 +99,26 @@ describe('DossiersService', () => {
     )
   })
 
-  it('scopes list to the authenticated user', async () => {
+  it('scopes list to the authenticated entrepreneur user', async () => {
     const prisma = buildPrisma()
     prisma.dossier.findMany.mockResolvedValue([{ id: 'd-1' }])
     const svc = await instantiate(prisma)
 
-    await svc.listForUser('u-1')
+    await svc.listForUser({ id: 'u-1', email: 'user@example.com', role: 'entrepreneur' })
     expect(prisma.dossier.findMany).toHaveBeenCalledWith({
       where: { userId: 'u-1' },
+      orderBy: { createdAt: 'desc' },
+    })
+  })
+
+  it('scopes list to shared dossiers for a financeur', async () => {
+    const prisma = buildPrisma()
+    prisma.dossier.findMany.mockResolvedValue([{ id: 'd-2' }])
+    const svc = await instantiate(prisma)
+
+    await svc.listForUser({ id: 'u-2', email: 'fin@example.com', role: 'financeur' })
+    expect(prisma.dossier.findMany).toHaveBeenCalledWith({
+      where: { shareLinks: { some: { recipientEmail: 'fin@example.com', status: 'active' } } },
       orderBy: { createdAt: 'desc' },
     })
   })

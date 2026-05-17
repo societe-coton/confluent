@@ -7,6 +7,26 @@ import { formatRelativeDate } from '@/lib/relative-date'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
+const TAG_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+  deeptech: { bg: '#E8E4F5', text: '#3d3479', label: 'Deeptech' },
+  tech: { bg: '#DEEBF2', text: '#235974', label: 'Tech' },
+  non_tech: { bg: '#E2EBD5', text: '#3d5328', label: 'Non-tech' },
+}
+
+function TagBadge({ tag }: { tag: string | null }) {
+  if (!tag) return <span className="text-muted-foreground">—</span>
+  const style = TAG_STYLES[tag]
+  if (!style) return <span className="text-muted-foreground">{tag}</span>
+  return (
+    <span
+      className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
+      style={{ backgroundColor: style.bg, color: style.text }}
+    >
+      {style.label}
+    </span>
+  )
+}
+
 const PAGE_SIZE = 20
 
 export default function AdminDossiersRoute() {
@@ -87,6 +107,7 @@ function AdminDossiersList() {
                   <p className="text-xs text-muted-foreground">
                     {d.sector ?? 'Non classifié'}
                   </p>
+                  <TagBadge tag={d.tagTechnologique ?? null} />
                 </Link>
               </li>
             ))}
@@ -100,6 +121,7 @@ function AdminDossiersList() {
                   <th scope="col" className="px-4 py-3 font-medium">Entrepreneur</th>
                   <th scope="col" className="px-4 py-3 font-medium">Secteur</th>
                   <th scope="col" className="px-4 py-3 font-medium">Stade</th>
+                  <th scope="col" className="px-4 py-3 font-medium">Tag</th>
                   <th scope="col" className="px-4 py-3 font-medium">Créé</th>
                   <th scope="col" className="px-4 py-3 font-medium">Accès actifs</th>
                 </tr>
@@ -128,6 +150,9 @@ function AdminDossiersList() {
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {d.maturityStage ?? '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <TagBadge tag={d.tagTechnologique ?? null} />
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {formatRelativeDate(d.createdAt)}

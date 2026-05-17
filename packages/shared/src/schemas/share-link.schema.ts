@@ -2,12 +2,15 @@ import { z } from 'zod';
 
 export const shareLinkStatusSchema = z.enum(['pending', 'active', 'revoked', 'expired']);
 
+export const accessLevelSchema = z.enum(['public', 'partiel', 'complet']);
+
 export const shareLinkSchema = z.object({
   id: z.string().uuid(),
   dossierId: z.string().uuid(),
   recipientEmail: z.string().email(),
   token: z.string().uuid(),
   status: shareLinkStatusSchema,
+  accessLevel: accessLevelSchema.default('complet'),
   createdAt: z.string().datetime(),
   revokedAt: z.string().datetime().nullable(),
 });
@@ -18,6 +21,7 @@ export const shareLinkWithUrlSchema = shareLinkSchema.extend({
 
 export const createShareLinkSchema = z.object({
   recipientEmail: z.string().trim().toLowerCase().email(),
+  accessLevel: accessLevelSchema.optional(),
 });
 
 export const financeurShareResponseSchema = z.object({
@@ -33,6 +37,7 @@ export const financeurShareResponseSchema = z.object({
 });
 
 export type ShareLinkStatus = z.infer<typeof shareLinkStatusSchema>;
+export type AccessLevel = z.infer<typeof accessLevelSchema>;
 export type ShareLink = z.infer<typeof shareLinkSchema>;
 export type ShareLinkWithUrl = z.infer<typeof shareLinkWithUrlSchema>;
 export type CreateShareLinkInput = z.infer<typeof createShareLinkSchema>;

@@ -21,7 +21,8 @@
     "db:seed": "pnpm --filter @confluent/api db:seed",
     "db:sync": "pnpm --filter @confluent/api db:sync --",
     "db:studio": "pnpm --filter @confluent/api db:studio",
-    "api:token": "pnpm --silent --filter @confluent/api exec tsx scripts/issue-token.ts"
+    "api:token": "pnpm --silent --filter @confluent/api exec tsx scripts/issue-token.ts",
+    "bootstrap:admin": "pnpm --silent --filter @confluent/api exec tsx scripts/bootstrap-admin.ts"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

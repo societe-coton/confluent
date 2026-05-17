@@ -2,6 +2,7 @@ export interface Question {
   readonly id: string
   readonly label: string
   readonly hint?: string
+  readonly options?: readonly string[]
 }
 
 export interface Section {

@@ -10,6 +10,7 @@ export interface AdminDossierListItem {
   slug: string
   sector: string | null
   maturityStage: string | null
+  tagTechnologique: string | null
   ownerEmail: string
   createdAt: Date
   activeShareLinksCount: number
@@ -50,6 +51,7 @@ export class AdminDossiersService {
       slug: d.slug,
       sector: d.sector,
       maturityStage: d.maturityStage,
+      tagTechnologique: d.tagTechnologique,
       ownerEmail: d.user.email,
       createdAt: d.createdAt,
       activeShareLinksCount: d.shareLinks.length,

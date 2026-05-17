@@ -1,4 +1,5 @@
 export type AccessStatus = 'active' | 'pending' | 'revoked'
+export type AccessLevel = 'public' | 'partiel' | 'complet'
 
 interface AccessEntryBase {
   readonly id: string
@@ -6,6 +7,7 @@ interface AccessEntryBase {
   readonly initials: string
   readonly lastSeen: string
   readonly sessionDuration: string
+  readonly accessLevel: AccessLevel
 }
 
 export type AccessEntry =

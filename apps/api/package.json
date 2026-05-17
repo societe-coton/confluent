@@ -31,7 +31,9 @@
     "db:sync": "tsx scripts/db-sync.ts",
     "api:token": "tsx scripts/issue-token.ts",
     "email:preview": "tsx scripts/email-preview.ts",
-    "email:test": "tsx scripts/email-send-test.ts"
+    "email:test": "tsx scripts/email-send-test.ts",
+    "bootstrap:admin": "tsx scripts/bootstrap-admin.ts",
+    "questionnaire:v2": "tsx scripts/seed-questionnaire-v2.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

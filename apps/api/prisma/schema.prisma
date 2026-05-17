@@ -65,6 +65,8 @@ model User {
   isActive        Boolean   @default(true) @map("is_active")
   emailVerifiedAt DateTime? @map("email_verified_at")
   locale          String    @default("fr")
+  firstName       String?   @map("first_name")
+  lastName        String?   @map("last_name")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
@@ -108,6 +110,7 @@ model QuestionnaireField {
   section    String
   label      String
   fieldType  field_type @map("field_type")
+  options    String[]   @default([])
   required   Boolean    @default(false)
   orderIndex Int        @map("order_index")
 
@@ -126,6 +129,13 @@ model Dossier {
   questionnaireVersionId String   @map("questionnaire_version_id")
   sector                 String?
   maturityStage          String?  @map("maturity_stage")
+  ancrageCvl             String?  @map("ancrage_cvl")
+  tagTechnologique       String?  @map("tag_technologique")
+  axe1Projet             Int?     @map("axe1_projet")
+  axe2Financier          Int?     @map("axe2_financier")
+  axe3Origine            Int?     @map("axe3_origine")
+  deeptechScore          Int?     @map("deeptech_score")
+  preCreation            Boolean? @map("pre_creation")
   submittedAt            DateTime? @map("submitted_at")
   createdAt              DateTime @default(now()) @map("created_at")
   updatedAt              DateTime @updatedAt @map("updated_at")
@@ -180,6 +190,7 @@ model ShareLink {
   recipientEmail String            @map("recipient_email")
   token          String            @unique
   status         share_link_status @default(pending)
+  accessLevel    String            @default("complet") @map("access_level")
   createdAt      DateTime          @default(now()) @map("created_at")
   revokedAt      DateTime?         @map("revoked_at")
 

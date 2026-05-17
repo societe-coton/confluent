@@ -5,11 +5,13 @@ import { DossierCard } from '@/components/confluent/DossierCard'
 import { EmptyState } from '@/components/confluent/EmptyState'
 import { EmptyDossiersIllustration } from '@/components/confluent/illustrations/EmptyDossiersIllustration'
 import { useDossiers } from '@/features/dossiers/hooks'
+import { useCurrentUser } from '@/features/current-user/context'
 
 export default function DashboardRoute() {
   const navigate = useNavigate()
   const headingRef = useRef<HTMLHeadingElement>(null)
   const { data: dossiers, isLoading, error } = useDossiers()
+  const currentUser = useCurrentUser()
 
   useEffect(() => {
     headingRef.current?.focus()
@@ -60,6 +62,9 @@ export default function DashboardRoute() {
                 name={d.name}
                 sector={d.sector}
                 maturity={d.maturityStage}
+                isShared={d.userId !== currentUser.id}
+                ownerEmail={d.ownerEmail}
+                ownerName={d.ownerName}
                 createdAt={d.createdAt}
                 className="flex-1"
               />

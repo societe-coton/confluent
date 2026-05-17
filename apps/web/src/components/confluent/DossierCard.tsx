@@ -9,6 +9,9 @@ export interface DossierCardProps {
   sector: string | null
   maturity: string | null
   activeShareLinksCount?: number
+  isShared?: boolean
+  ownerEmail?: string
+  ownerName?: string
   createdAt: string
   className?: string
 }
@@ -24,6 +27,9 @@ export function DossierCard({
   sector,
   maturity,
   activeShareLinksCount,
+  isShared,
+  ownerEmail,
+  ownerName,
   createdAt,
   className,
 }: DossierCardProps) {
@@ -56,11 +62,21 @@ export function DossierCard({
         <h3 className="min-w-0 break-words text-base font-medium text-foreground">
           {name}
         </h3>
-        <Badge variant="secondary" className="shrink-0">
-          {maturityLabel}
-        </Badge>
+        <div className="flex shrink-0 flex-wrap gap-1.5">
+          {isShared && (
+            <Badge variant="outline" className="shrink-0">
+              Partagé avec moi
+            </Badge>
+          )}
+          <Badge variant="secondary" className="shrink-0">
+            {maturityLabel}
+          </Badge>
+        </div>
       </div>
       <p className="text-xs text-muted-foreground">{sectorLabel}</p>
+      {isShared && ownerEmail && (
+        <p className="text-xs text-muted-foreground">Partagé par {ownerName ?? ownerEmail}</p>
+      )}
       <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
         {accessLabel && (
           <>

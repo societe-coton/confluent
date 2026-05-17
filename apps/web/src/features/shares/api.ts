@@ -10,10 +10,11 @@ export function listShares(dossierId: string): Promise<ShareLink[]> {
 export function createShare(
   dossierId: string,
   recipientEmail: string,
+  accessLevel: 'public' | 'partiel' | 'complet' = 'complet',
 ): Promise<ShareLink & { shareUrl: string }> {
   return apiRequest<ShareLink & { shareUrl: string }>(
     `/v1/dossiers/${encodeURIComponent(dossierId)}/shares`,
-    { method: 'POST', body: JSON.stringify({ recipientEmail }) },
+    { method: 'POST', body: JSON.stringify({ recipientEmail, accessLevel }) },
   )
 }
 

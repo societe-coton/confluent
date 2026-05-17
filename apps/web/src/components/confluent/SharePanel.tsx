@@ -15,7 +15,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import type { AccessEntry } from '@/features/shares/access-entry'
+import { cn } from '@/lib/utils'
+import type { AccessEntry, AccessLevel } from '@/features/shares/access-entry'
 
 const shareFormSchema = z.object({
   email: z
@@ -27,9 +28,27 @@ const shareFormSchema = z.object({
 })
 type ShareFormValues = z.infer<typeof shareFormSchema>
 
+const ACCESS_LEVELS: { value: AccessLevel; label: string; description: string }[] = [
+  {
+    value: 'public',
+    label: 'Public',
+    description: 'Informations de base du profil uniquement',
+  },
+  {
+    value: 'partiel',
+    label: 'Partiel',
+    description: 'Détails du projet, données financières masquées',
+  },
+  {
+    value: 'complet',
+    label: 'Complet',
+    description: 'Accès intégral au dossier',
+  },
+]
+
 export interface SharePanelProps {
   existingEntries: readonly AccessEntry[]
-  onSubmitInvitation: (email: string) => Promise<void>
+  onSubmitInvitation: (email: string, accessLevel: AccessLevel) => Promise<void>
 }
 
 export function SharePanel({
@@ -37,6 +56,7 @@ export function SharePanel({
   onSubmitInvitation,
 }: SharePanelProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [accessLevel, setAccessLevel] = useState<AccessLevel>('complet')
   const {
     register,
     handleSubmit,
@@ -63,8 +83,9 @@ export function SharePanel({
     }
     setIsSubmitting(true)
     try {
-      await onSubmitInvitation(email)
+      await onSubmitInvitation(email, accessLevel)
       reset()
+      setAccessLevel('complet')
     } catch (err) {
       const message =
         typeof err === 'object' && err !== null && 'message' in err
@@ -81,38 +102,68 @@ export function SharePanel({
       <SheetHeader>
         <SheetTitle>Partager le dossier</SheetTitle>
         <SheetDescription>
-          Entrez l&apos;adresse email du destinataire pour lui envoyer une
-          invitation d&apos;accès.
+          Entrez l&apos;adresse email du destinataire et choisissez le niveau
+          d&apos;accès.
         </SheetDescription>
       </SheetHeader>
 
       <Separator />
 
       <form onSubmit={onSubmit} noValidate>
-        <div className="flex flex-col gap-3 px-4 py-3">
-          <Label htmlFor="share-email">Adresse email du destinataire</Label>
-          <Input
-            id="share-email"
-            type="email"
-            autoFocus
-            autoComplete="email"
-            placeholder="marc@fonds.fr"
-            aria-required="true"
-            aria-invalid={errors.email ? 'true' : undefined}
-            aria-describedby={errors.email ? 'share-email-error' : undefined}
-            {...register('email')}
-          />
-          <div
-            aria-live="assertive"
-            aria-atomic="true"
-            className="min-h-[1em]"
-          >
-            {errors.email && (
-              <p id="share-email-error" className="text-xs text-destructive">
-                {errors.email.message}
-              </p>
-            )}
+        <div className="flex flex-col gap-4 px-4 py-3">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="share-email">Email du destinataire</Label>
+            <Input
+              id="share-email"
+              type="email"
+              autoFocus
+              autoComplete="email"
+              placeholder="marc@fonds.fr"
+              aria-required="true"
+              aria-invalid={errors.email ? 'true' : undefined}
+              aria-describedby={errors.email ? 'share-email-error' : undefined}
+              {...register('email')}
+            />
+            <div aria-live="assertive" aria-atomic="true" className="min-h-[1em]">
+              {errors.email && (
+                <p id="share-email-error" className="text-xs text-destructive">
+                  {errors.email.message}
+                </p>
+              )}
+            </div>
           </div>
+
+          <fieldset className="flex flex-col gap-1.5">
+            <legend className="mb-1 text-sm font-medium text-foreground">
+              Niveau d&apos;accès
+            </legend>
+            {ACCESS_LEVELS.map((level) => (
+              <button
+                key={level.value}
+                type="button"
+                onClick={() => setAccessLevel(level.value)}
+                className={cn(
+                  'rounded-lg border px-3 py-2.5 text-left transition-colors',
+                  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)]',
+                  accessLevel === level.value
+                    ? 'border-foreground bg-foreground text-background'
+                    : 'border-border bg-card hover:border-foreground/40',
+                )}
+              >
+                <span className="block text-sm font-medium">{level.label}</span>
+                <span
+                  className={cn(
+                    'block text-xs',
+                    accessLevel === level.value
+                      ? 'text-background/70'
+                      : 'text-muted-foreground',
+                  )}
+                >
+                  {level.description}
+                </span>
+              </button>
+            ))}
+          </fieldset>
         </div>
 
         <SheetFooter className="flex-col gap-2 p-4 sm:flex-row-reverse sm:justify-start">
@@ -151,11 +202,32 @@ export function SharePanel({
                 >
                   {entry.email}
                 </span>
+                <AccessLevelBadge level={entry.accessLevel} />
               </li>
             ))}
           </ul>
         )}
       </div>
     </SheetContent>
+  )
+}
+
+const LEVEL_STYLES: Record<AccessLevel, { label: string; className: string }> = {
+  public: { label: 'Public', className: 'bg-amber-50 text-amber-700 border-amber-200' },
+  partiel: { label: 'Partiel', className: 'bg-blue-50 text-blue-700 border-blue-200' },
+  complet: { label: 'Complet', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+}
+
+function AccessLevelBadge({ level }: { level: AccessLevel }) {
+  const style = LEVEL_STYLES[level] ?? LEVEL_STYLES.complet
+  return (
+    <span
+      className={cn(
+        'ml-auto shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-medium',
+        style.className,
+      )}
+    >
+      {style.label}
+    </span>
   )
 }

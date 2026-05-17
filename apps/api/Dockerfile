@@ -37,9 +37,10 @@ COPY --from=build /repo/node_modules/ node_modules/
 # Shared package — compiled output only.
 COPY --from=build /repo/packages/shared/dist/ packages/shared/dist/
 COPY --from=build /repo/packages/shared/package.json packages/shared/
-# API — dist, prisma assets, and package.json (carries scripts + prisma.seed block).
+# API — dist, prisma assets, scripts (seed / admin helpers), and package.json.
 COPY --from=build /repo/apps/api/dist/ apps/api/dist/
 COPY --from=build /repo/apps/api/prisma/ apps/api/prisma/
+COPY --from=build /repo/apps/api/scripts/ apps/api/scripts/
 COPY --from=build /repo/apps/api/package.json apps/api/
 EXPOSE 3000
 CMD ["node", "apps/api/dist/main.js"]

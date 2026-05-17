@@ -38,9 +38,25 @@ export class DossiersService {
     })
   }
 
-  listForUser(userId: string): Promise<Dossier[]> {
+  async listForUser(user: { id: string; email: string; role: string }): Promise<Dossier[]> {
+    if (user.role === 'financeur') {
+      const rows = await this.prisma.dossier.findMany({
+        where: {
+          shareLinks: {
+            some: { recipientEmail: user.email, status: 'active' },
+          },
+        },
+        include: { user: { select: { email: true, firstName: true, lastName: true } } },
+        orderBy: { createdAt: 'desc' },
+      })
+      return rows.map(({ user: owner, ...d }) => {
+        const nameParts = [owner.firstName, owner.lastName].filter(Boolean)
+        const ownerName = nameParts.length > 0 ? nameParts.join(' ') : undefined
+        return { ...d, ownerEmail: owner.email, ownerName }
+      })
+    }
     return this.prisma.dossier.findMany({
-      where: { userId },
+      where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
     })
   }
@@ -53,8 +69,31 @@ export class DossiersService {
     return dossier
   }
 
-  async getWithQuestionnaire(id: string, userId: string) {
-    const dossier = await this.getByIdForUser(id, userId)
+  async assertReadAccess(
+    id: string,
+    user: { id: string; email: string; role: string },
+  ): Promise<Dossier> {
+    const dossier = await this.prisma.dossier.findUnique({ where: { id } })
+    if (!dossier) {
+      throw new NotFoundException({ code: 'DOSSIER_NOT_FOUND', message: 'Dossier not found.' })
+    }
+    if (user.role === 'financeur') {
+      const link = await this.prisma.shareLink.findFirst({
+        where: { dossierId: id, recipientEmail: user.email, status: 'active' },
+      })
+      if (!link) {
+        throw new NotFoundException({ code: 'DOSSIER_NOT_FOUND', message: 'Dossier not found.' })
+      }
+      return dossier
+    }
+    if (dossier.userId !== user.id) {
+      throw new NotFoundException({ code: 'DOSSIER_NOT_FOUND', message: 'Dossier not found.' })
+    }
+    return dossier
+  }
+
+  async getWithQuestionnaire(id: string, user: { id: string; email: string; role: string }) {
+    const dossier = await this.assertReadAccess(id, user)
     const snapshot = await this.questionnaires.getVersion(dossier.questionnaireVersionId)
     return { ...dossier, questionnaireVersion: snapshot }
   }

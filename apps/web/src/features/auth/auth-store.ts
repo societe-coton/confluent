@@ -4,6 +4,8 @@ export interface AuthUser {
   id: string
   email: string
   role: CurrentUser['role']
+  firstName: string | null
+  lastName: string | null
 }
 
 export interface AuthState {

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Post, Query, Req, Res } from '@nestjs/common'
+import { Body, Controller, Get, HttpCode, Patch, Post, Query, Req, Res } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { Throttle } from '@nestjs/throttler'
 import {
@@ -10,16 +10,22 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger'
 import type { Request, Response } from 'express'
-import { magicLinkRequestSchema, type MagicLinkRequest } from '@confluent/shared'
+import { magicLinkRequestSchema, updateProfileSchema, type MagicLinkRequest } from '@confluent/shared'
 import { createZodDto } from 'nestjs-zod'
 import { z } from 'zod'
 import type { AppConfig } from '../../config/config.schema'
 import { Public } from '../../common/decorators/public.decorator'
 import { AuthService, type IssuedSession } from './auth.service'
 import { REFRESH_COOKIE_NAME, REFRESH_TOKEN_TTL_SECONDS } from './auth.constants'
+import type { AuthenticatedUser } from './strategies/jwt.strategy'
 
 class MagicLinkRequestDto extends createZodDto(magicLinkRequestSchema) {}
 class VerifyQueryDto extends createZodDto(z.object({ token: z.string().uuid() })) {}
+class UpdateProfileDto extends createZodDto(updateProfileSchema) {}
+
+function currentUser(req: Request): AuthenticatedUser {
+  return (req as Request & { user: AuthenticatedUser }).user
+}
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -97,6 +103,18 @@ export class AuthController {
     const session = await this.auth.refreshSession(refreshCookie)
     this.setRefreshCookie(res, session.refreshToken)
     return { accessToken: session.accessToken, user: session.user }
+  }
+
+  @Patch('profile')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Mettre à jour le prénom et le nom du compte connecté' })
+  @ApiOkResponse({ description: 'Profil mis à jour.' })
+  @ApiUnauthorizedResponse({ description: 'JWT manquant.' })
+  updateProfile(
+    @Req() req: Request,
+    @Body() body: UpdateProfileDto,
+  ): Promise<{ firstName: string; lastName: string }> {
+    return this.auth.updateProfile(currentUser(req).id, body.firstName, body.lastName)
   }
 
   @Public()

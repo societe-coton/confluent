@@ -56,6 +56,7 @@ export class ShareLinksService {
     dossierId: string
     userId: string
     recipientEmail: string
+    accessLevel?: string
   }): Promise<ShareLink & { shareUrl: string }> {
     const dossier = await this.dossiers.getByIdForUser(params.dossierId, params.userId)
     const recipientEmail = params.recipientEmail.trim().toLowerCase()
@@ -82,6 +83,7 @@ export class ShareLinksService {
         recipientEmail,
         token,
         status: 'active',
+        accessLevel: params.accessLevel ?? 'complet',
       },
     })
     const frontendUrl = this.config.get('FRONTEND_URL', { infer: true })

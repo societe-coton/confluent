@@ -8,9 +8,18 @@ export const dossierSchema = z.object({
   questionnaireVersionId: z.string().uuid(),
   sector: z.string().nullable(),
   maturityStage: z.string().nullable(),
+  ancrageCvl: z.string().nullable(),
+  tagTechnologique: z.string().nullable(),
+  axe1Projet: z.number().int().nullable(),
+  axe2Financier: z.number().int().nullable(),
+  axe3Origine: z.number().int().nullable(),
+  deeptechScore: z.number().int().nullable(),
+  preCreation: z.boolean().nullable(),
   submittedAt: z.string().datetime().nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
+  ownerEmail: z.string().email().optional(),
+  ownerName: z.string().optional(),
 });
 
 export const createDossierSchema = z.object({
@@ -29,6 +38,7 @@ export const adminDossierListItemSchema = z.object({
   slug: z.string(),
   sector: z.string().nullable(),
   maturityStage: z.string().nullable(),
+  tagTechnologique: z.string().nullable(),
   ownerEmail: z.string().email(),
   createdAt: z.string().datetime(),
   activeShareLinksCount: z.number().int().nonnegative(),
