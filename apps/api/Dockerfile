@@ -52,9 +52,7 @@ ARG DOPPLER_TOKEN
 ARG APP_VERSION
 ENV DOPPLER_TOKEN=${DOPPLER_TOKEN}
 ENV APP_VERSION=${APP_VERSION}
-RUN ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/') \
- && wget -q -O /tmp/doppler.tar.gz \
-    "https://github.com/DopplerHQ/cli/releases/latest/download/doppler_linux_${ARCH}.tar.gz" \
- && tar xzf /tmp/doppler.tar.gz -C /usr/local/bin/ doppler \
- && rm /tmp/doppler.tar.gz
+RUN wget -q -t3 'https://packages.doppler.com/public/cli/rsa.8004D9FF50437357.key' -O /etc/apk/keys/cli@doppler-8004D9FF50437357.rsa.pub \
+ && echo 'https://packages.doppler.com/public/cli/alpine/any-version/main' | tee -a /etc/apk/repositories \
+ && apk add --no-cache doppler
 CMD ["sh", "-c", "doppler run -- node apps/api/dist/main.js"]
