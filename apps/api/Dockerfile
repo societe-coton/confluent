@@ -37,6 +37,7 @@ ENV NODE_ENV=production
 COPY --from=build /repo/package.json /repo/pnpm-workspace.yaml /repo/pnpm-lock.yaml ./
 COPY --from=build /repo/node_modules/ node_modules/
 # Shared package — compiled output only.
+COPY --from=build /repo/packages/shared/node_modules/ packages/shared/node_modules/
 COPY --from=build /repo/packages/shared/dist/ packages/shared/dist/
 COPY --from=build /repo/packages/shared/package.json packages/shared/
 # API — dist, prisma assets, scripts (seed / admin helpers), and package.json.
