@@ -1,5 +1,5 @@
-import { publicApiRequest } from '@/lib/api-client'
-import { setAuth, type AuthUser } from './auth-store'
+import { publicApiRequest, apiRequest } from '@/lib/api-client'
+import { setAuth, getAuthState, type AuthUser } from './auth-store'
 
 interface SessionResponse {
   accessToken: string
@@ -20,6 +20,26 @@ export async function verifyMagicLink(token: string): Promise<AuthUser> {
   )
   setAuth({ accessToken: body.accessToken, user: body.user })
   return body.user
+}
+
+export async function updateProfile(firstName: string, lastName: string): Promise<void> {
+  const body = await apiRequest<{ firstName: string; lastName: string }>(
+    '/v1/auth/profile',
+    { method: 'PATCH', body: JSON.stringify({ firstName, lastName }) },
+  )
+  const { accessToken, user } = getAuthState()
+  if (user && accessToken) {
+    setAuth({ accessToken, user: { ...user, firstName: body.firstName, lastName: body.lastName } })
+  }
+}
+
+export async function initAuth(): Promise<void> {
+  try {
+    const body = await publicApiRequest<SessionResponse>('/v1/auth/refresh', { method: 'POST' })
+    setAuth({ accessToken: body.accessToken, user: body.user })
+  } catch {
+    setAuth(null)
+  }
 }
 
 export async function logout(): Promise<void> {
