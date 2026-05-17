@@ -47,12 +47,14 @@ COPY --from=build /repo/apps/api/package.json apps/api/
 EXPOSE 3000
 CMD ["node", "apps/api/dist/main.js"]
 
-FROM dopplerhq/cli:3 AS doppler-cli
-
 FROM runtime AS prod
 ARG DOPPLER_TOKEN
 ARG APP_VERSION
 ENV DOPPLER_TOKEN=${DOPPLER_TOKEN}
 ENV APP_VERSION=${APP_VERSION}
-COPY --from=doppler-cli /usr/local/bin/doppler /usr/local/bin/doppler
+RUN ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/') \
+ && wget -q -O /tmp/doppler.tar.gz \
+    "https://github.com/DopplerHQ/cli/releases/latest/download/doppler_linux_${ARCH}.tar.gz" \
+ && tar xzf /tmp/doppler.tar.gz -C /usr/local/bin/ doppler \
+ && rm /tmp/doppler.tar.gz
 CMD ["sh", "-c", "doppler run -- node apps/api/dist/main.js"]
