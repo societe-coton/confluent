@@ -62,7 +62,7 @@ async function tryRefresh(): Promise<boolean> {
     }
     const body = (await res.json()) as {
       accessToken: string
-      user: { id: string; email: string; role: 'entrepreneur' | 'financeur' | 'admin' }
+      user: { id: string; email: string; role: 'entrepreneur' | 'financeur' | 'admin'; firstName: string | null; lastName: string | null }
     }
     setAuth({ accessToken: body.accessToken, user: body.user })
     return true
