@@ -52,7 +52,7 @@ ARG DOPPLER_TOKEN
 ARG APP_VERSION
 ENV DOPPLER_TOKEN=${DOPPLER_TOKEN}
 ENV APP_VERSION=${APP_VERSION}
-RUN apk add --no-cache curl gnupg \
- && curl -Ls --tlsv1.2 --proto "=https" --retry 3 https://cli.doppler.com/install.sh | sh \
- && apk del curl gnupg
+RUN wget -q -t3 'https://packages.doppler.com/public/cli/rsa.8004D9FF50437357.key' -O /etc/apk/keys/cli@doppler-8004D9FF50437357.rsa.pub \
+ && echo 'https://packages.doppler.com/public/cli/alpine/any-version/main' >> /etc/apk/repositories \
+ && apk add --no-cache doppler
 CMD ["sh", "-c", "doppler run -- node apps/api/dist/main.js"]
